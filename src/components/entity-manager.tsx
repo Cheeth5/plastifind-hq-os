@@ -167,8 +167,8 @@ export function EntityForm({
 export function EntityManager({ config, extraHeader }: { config: EntityConfig; extraHeader?: ReactNode }) {
   const { table, fields } = config;
   const { data, isLoading } = useRows(table, {
-    order: config.defaultOrder?.column,
-    ascending: config.defaultOrder?.ascending,
+    order: config.defaultOrder?.column ?? "created_at",
+    ascending: config.defaultOrder?.ascending ?? false,
   });
   const create = useCreateRow(table);
   const update = useUpdateRow(table);
@@ -191,7 +191,7 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
       const q = query.toLowerCase();
       r = r.filter((row) => searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q)));
     }
-    if (filter !== "all" && config.filterKey) r = r.filter((row) => row[config.filterKey!] === filter);
+    if (filter !== "all" && config.filterKey) r = r.filter((row) => row[config.filterKey as string] === filter);
     return r;
   }, [data, query, filter, config.filterKey, searchKeys]);
 
@@ -213,7 +213,7 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
       return;
     }
     const values = coerce(fields, draft);
-    if (editing) update.mutate({ id: editing.id, values }, { onSuccess: () => setOpen(false) });
+    if (editing) update.mutate({ id: editing['id'], values }, { onSuccess: () => setOpen(false) });
     else create.mutate(values, { onSuccess: () => setOpen(false) });
   };
 
@@ -293,7 +293,7 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
               </thead>
               <tbody className="divide-y divide-border">
                 {rows.map((row) => (
-                  <tr key={row.id} className="group transition-colors hover:bg-accent/40">
+                  <tr key={row['id']} className="group transition-colors hover:bg-accent/40">
                     {listFields.map((f, i) => (
                       <td key={f.key} className={cn("px-4 py-3 align-middle", i === 0 && "font-medium")}>
                         {renderCell(f, row)}
@@ -325,9 +325,9 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
           {/* Mobile cards */}
           <div className="grid gap-3 md:hidden">
             {rows.map((row) => (
-              <div key={row.id} className="panel p-4">
+              <div key={row['id']} className="panel p-4">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                  <p className="min-w-0 truncate font-semibold">{String(row[listFields[0]?.key] ?? "—")}</p>
+                  <p className="min-w-0 truncate font-semibold">{String(row[listFields[0]?.key ?? "id"] ?? "—")}</p>
                   <div className="flex shrink-0 gap-1">
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(row)}>
                       <Pencil className="h-3.5 w-3.5" />
@@ -386,7 +386,7 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (toDelete) remove.mutate(toDelete.id);
+                if (toDelete) remove.mutate(toDelete['id']);
                 setToDelete(null);
               }}
             >

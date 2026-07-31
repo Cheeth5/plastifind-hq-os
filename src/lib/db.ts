@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type Row = Record<string, any>;
 
-export function useRows(table: string, opts?: { order?: string; ascending?: boolean; limit?: number }) {
+export function useRows(table: string, opts?: { order?: string | undefined; ascending?: boolean | undefined; limit?: number | undefined }) {
   return useQuery({
     queryKey: ["rows", table, opts?.order, opts?.ascending, opts?.limit],
     queryFn: async (): Promise<Row[]> => {
