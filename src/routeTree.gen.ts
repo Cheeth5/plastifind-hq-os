@@ -13,12 +13,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAchievementsRouteImport } from './routes/_authenticated/achievements'
+import { Route as AuthenticatedBusinessRouteImport } from './routes/_authenticated/business'
+import { Route as AuthenticatedCompanyRouteImport } from './routes/_authenticated/company'
 import { Route as AuthenticatedCompetitionsRouteImport } from './routes/_authenticated/competitions'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedEngineeringRouteImport } from './routes/_authenticated/engineering'
+import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticated/finance'
 import { Route as AuthenticatedFundingRouteImport } from './routes/_authenticated/funding'
+import { Route as AuthenticatedLegalRouteImport } from './routes/_authenticated/legal'
 import { Route as AuthenticatedMarketingRouteImport } from './routes/_authenticated/marketing'
 import { Route as AuthenticatedMediaRouteImport } from './routes/_authenticated/media'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
@@ -26,6 +30,7 @@ import { Route as AuthenticatedProductsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedResearchRouteImport } from './routes/_authenticated/research'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedUniversityRouteImport } from './routes/_authenticated/university'
@@ -50,6 +55,16 @@ const AuthenticatedAchievementsRoute =
     path: '/achievements',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBusinessRoute = AuthenticatedBusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCompanyRoute = AuthenticatedCompanyRouteImport.update({
+  id: '/company',
+  path: '/company',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCompetitionsRoute =
   AuthenticatedCompetitionsRouteImport.update({
     id: '/competitions',
@@ -77,9 +92,19 @@ const AuthenticatedEngineeringRoute =
     path: '/engineering',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedFinanceRoute = AuthenticatedFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedFundingRoute = AuthenticatedFundingRouteImport.update({
   id: '/funding',
   path: '/funding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLegalRoute = AuthenticatedLegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMarketingRoute = AuthenticatedMarketingRouteImport.update({
@@ -117,6 +142,11 @@ const AuthenticatedRoadmapRoute = AuthenticatedRoadmapRouteImport.update({
   path: '/roadmap',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTasksRoute = AuthenticatedTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -137,12 +167,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/achievements': typeof AuthenticatedAchievementsRoute
+  '/business': typeof AuthenticatedBusinessRoute
+  '/company': typeof AuthenticatedCompanyRoute
   '/competitions': typeof AuthenticatedCompetitionsRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/engineering': typeof AuthenticatedEngineeringRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/funding': typeof AuthenticatedFundingRoute
+  '/legal': typeof AuthenticatedLegalRoute
   '/marketing': typeof AuthenticatedMarketingRoute
   '/media': typeof AuthenticatedMediaRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
@@ -150,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof AuthenticatedProjectsRoute
   '/research': typeof AuthenticatedResearchRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/team': typeof AuthenticatedTeamRoute
   '/university': typeof AuthenticatedUniversityRoute
@@ -158,12 +193,16 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/achievements': typeof AuthenticatedAchievementsRoute
+  '/business': typeof AuthenticatedBusinessRoute
+  '/company': typeof AuthenticatedCompanyRoute
   '/competitions': typeof AuthenticatedCompetitionsRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/engineering': typeof AuthenticatedEngineeringRoute
+  '/finance': typeof AuthenticatedFinanceRoute
   '/funding': typeof AuthenticatedFundingRoute
+  '/legal': typeof AuthenticatedLegalRoute
   '/marketing': typeof AuthenticatedMarketingRoute
   '/media': typeof AuthenticatedMediaRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
@@ -171,6 +210,7 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthenticatedProjectsRoute
   '/research': typeof AuthenticatedResearchRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/team': typeof AuthenticatedTeamRoute
   '/university': typeof AuthenticatedUniversityRoute
@@ -181,12 +221,16 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/achievements': typeof AuthenticatedAchievementsRoute
+  '/_authenticated/business': typeof AuthenticatedBusinessRoute
+  '/_authenticated/company': typeof AuthenticatedCompanyRoute
   '/_authenticated/competitions': typeof AuthenticatedCompetitionsRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/engineering': typeof AuthenticatedEngineeringRoute
+  '/_authenticated/finance': typeof AuthenticatedFinanceRoute
   '/_authenticated/funding': typeof AuthenticatedFundingRoute
+  '/_authenticated/legal': typeof AuthenticatedLegalRoute
   '/_authenticated/marketing': typeof AuthenticatedMarketingRoute
   '/_authenticated/media': typeof AuthenticatedMediaRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
@@ -194,6 +238,7 @@ export interface FileRoutesById {
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
   '/_authenticated/research': typeof AuthenticatedResearchRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/university': typeof AuthenticatedUniversityRoute
@@ -204,12 +249,16 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/achievements'
+    | '/business'
+    | '/company'
     | '/competitions'
     | '/crm'
     | '/dashboard'
     | '/documents'
     | '/engineering'
+    | '/finance'
     | '/funding'
+    | '/legal'
     | '/marketing'
     | '/media'
     | '/meetings'
@@ -217,6 +266,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/research'
     | '/roadmap'
+    | '/settings'
     | '/tasks'
     | '/team'
     | '/university'
@@ -225,12 +275,16 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/achievements'
+    | '/business'
+    | '/company'
     | '/competitions'
     | '/crm'
     | '/dashboard'
     | '/documents'
     | '/engineering'
+    | '/finance'
     | '/funding'
+    | '/legal'
     | '/marketing'
     | '/media'
     | '/meetings'
@@ -238,6 +292,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/research'
     | '/roadmap'
+    | '/settings'
     | '/tasks'
     | '/team'
     | '/university'
@@ -247,12 +302,16 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/achievements'
+    | '/_authenticated/business'
+    | '/_authenticated/company'
     | '/_authenticated/competitions'
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
     | '/_authenticated/engineering'
+    | '/_authenticated/finance'
     | '/_authenticated/funding'
+    | '/_authenticated/legal'
     | '/_authenticated/marketing'
     | '/_authenticated/media'
     | '/_authenticated/meetings'
@@ -260,6 +319,7 @@ export interface FileRouteTypes {
     | '/_authenticated/projects'
     | '/_authenticated/research'
     | '/_authenticated/roadmap'
+    | '/_authenticated/settings'
     | '/_authenticated/tasks'
     | '/_authenticated/team'
     | '/_authenticated/university'
@@ -301,6 +361,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAchievementsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/business': {
+      id: '/_authenticated/business'
+      path: '/business'
+      fullPath: '/business'
+      preLoaderRoute: typeof AuthenticatedBusinessRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/company': {
+      id: '/_authenticated/company'
+      path: '/company'
+      fullPath: '/company'
+      preLoaderRoute: typeof AuthenticatedCompanyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/competitions': {
       id: '/_authenticated/competitions'
       path: '/competitions'
@@ -336,11 +410,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEngineeringRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/finance': {
+      id: '/_authenticated/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof AuthenticatedFinanceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/funding': {
       id: '/_authenticated/funding'
       path: '/funding'
       fullPath: '/funding'
       preLoaderRoute: typeof AuthenticatedFundingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/legal': {
+      id: '/_authenticated/legal'
+      path: '/legal'
+      fullPath: '/legal'
+      preLoaderRoute: typeof AuthenticatedLegalRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/marketing': {
@@ -392,6 +480,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRoadmapRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tasks': {
       id: '/_authenticated/tasks'
       path: '/tasks'
@@ -418,12 +513,16 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAchievementsRoute: typeof AuthenticatedAchievementsRoute
+  AuthenticatedBusinessRoute: typeof AuthenticatedBusinessRoute
+  AuthenticatedCompanyRoute: typeof AuthenticatedCompanyRoute
   AuthenticatedCompetitionsRoute: typeof AuthenticatedCompetitionsRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedEngineeringRoute: typeof AuthenticatedEngineeringRoute
+  AuthenticatedFinanceRoute: typeof AuthenticatedFinanceRoute
   AuthenticatedFundingRoute: typeof AuthenticatedFundingRoute
+  AuthenticatedLegalRoute: typeof AuthenticatedLegalRoute
   AuthenticatedMarketingRoute: typeof AuthenticatedMarketingRoute
   AuthenticatedMediaRoute: typeof AuthenticatedMediaRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
@@ -431,6 +530,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
   AuthenticatedResearchRoute: typeof AuthenticatedResearchRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTasksRoute: typeof AuthenticatedTasksRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedUniversityRoute: typeof AuthenticatedUniversityRoute
@@ -438,12 +538,16 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAchievementsRoute: AuthenticatedAchievementsRoute,
+  AuthenticatedBusinessRoute: AuthenticatedBusinessRoute,
+  AuthenticatedCompanyRoute: AuthenticatedCompanyRoute,
   AuthenticatedCompetitionsRoute: AuthenticatedCompetitionsRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedEngineeringRoute: AuthenticatedEngineeringRoute,
+  AuthenticatedFinanceRoute: AuthenticatedFinanceRoute,
   AuthenticatedFundingRoute: AuthenticatedFundingRoute,
+  AuthenticatedLegalRoute: AuthenticatedLegalRoute,
   AuthenticatedMarketingRoute: AuthenticatedMarketingRoute,
   AuthenticatedMediaRoute: AuthenticatedMediaRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
@@ -451,6 +555,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
   AuthenticatedResearchRoute: AuthenticatedResearchRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTasksRoute: AuthenticatedTasksRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedUniversityRoute: AuthenticatedUniversityRoute,
