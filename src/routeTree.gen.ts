@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAchievementsRouteImport } from './routes/_authenticated/achievements'
 import { Route as AuthenticatedCompetitionsRouteImport } from './routes/_authenticated/competitions'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedEngineeringRouteImport } from './routes/_authenticated/engineering'
 import { Route as AuthenticatedFundingRouteImport } from './routes/_authenticated/funding'
@@ -58,6 +59,11 @@ const AuthenticatedCompetitionsRoute =
 const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
   id: '/crm',
   path: '/crm',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/achievements': typeof AuthenticatedAchievementsRoute
   '/competitions': typeof AuthenticatedCompetitionsRoute
   '/crm': typeof AuthenticatedCrmRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/engineering': typeof AuthenticatedEngineeringRoute
   '/funding': typeof AuthenticatedFundingRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/achievements': typeof AuthenticatedAchievementsRoute
   '/competitions': typeof AuthenticatedCompetitionsRoute
   '/crm': typeof AuthenticatedCrmRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/engineering': typeof AuthenticatedEngineeringRoute
   '/funding': typeof AuthenticatedFundingRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/_authenticated/achievements': typeof AuthenticatedAchievementsRoute
   '/_authenticated/competitions': typeof AuthenticatedCompetitionsRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/engineering': typeof AuthenticatedEngineeringRoute
   '/_authenticated/funding': typeof AuthenticatedFundingRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/achievements'
     | '/competitions'
     | '/crm'
+    | '/dashboard'
     | '/documents'
     | '/engineering'
     | '/funding'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/achievements'
     | '/competitions'
     | '/crm'
+    | '/dashboard'
     | '/documents'
     | '/engineering'
     | '/funding'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/_authenticated/achievements'
     | '/_authenticated/competitions'
     | '/_authenticated/crm'
+    | '/_authenticated/dashboard'
     | '/_authenticated/documents'
     | '/_authenticated/engineering'
     | '/_authenticated/funding'
@@ -301,6 +313,13 @@ declare module '@tanstack/react-router' {
       path: '/crm'
       fullPath: '/crm'
       preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/documents': {
@@ -401,6 +420,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAchievementsRoute: typeof AuthenticatedAchievementsRoute
   AuthenticatedCompetitionsRoute: typeof AuthenticatedCompetitionsRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedEngineeringRoute: typeof AuthenticatedEngineeringRoute
   AuthenticatedFundingRoute: typeof AuthenticatedFundingRoute
@@ -420,6 +440,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAchievementsRoute: AuthenticatedAchievementsRoute,
   AuthenticatedCompetitionsRoute: AuthenticatedCompetitionsRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedEngineeringRoute: AuthenticatedEngineeringRoute,
   AuthenticatedFundingRoute: AuthenticatedFundingRoute,
@@ -446,13 +467,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
