@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
@@ -18,9 +18,5 @@ function AuthenticatedLayout() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
-  return (
-    <AppShell email={email}>
-      <Outlet />
-    </AppShell>
-  );
+  return <AppShell email={email} />;
 }
