@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Plus, Search, Pencil, Trash2, Upload, ExternalLink, X, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,10 +24,32 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EmptyState, PageHeader, StatusChip, TableSkeleton, Progress } from "@/components/ui-kit";
-import { useCreateRow, useDeleteRow, useRows, useUpdateRow, dateFR, eur, type Row } from "@/lib/db";
+import {
+  useCreateRow,
+  useDeleteRow,
+  useRows,
+  useUpdateRow,
+  dateFR,
+  eur,
+  uploadFile,
+  resolveFileUrl,
+  type Row,
+} from "@/lib/db";
+import { useT } from "@/lib/i18n";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export type FieldType = "text" | "textarea" | "number" | "date" | "datetime" | "select" | "currency" | "boolean";
+export type FieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "date"
+  | "datetime"
+  | "select"
+  | "currency"
+  | "boolean"
+  | "ref"
+  | "file";
 
 export type Field = {
   key: string;
@@ -45,6 +67,11 @@ export type Field = {
   className?: string;
   /** Hidden from the form */
   formHidden?: boolean;
+  /** For type "ref": the related table and the column used as label */
+  refTable?: string;
+  refLabelKey?: string;
+  /** For type "file": storage folder */
+  folder?: string;
 };
 
 export type EntityConfig = {
@@ -55,6 +82,8 @@ export type EntityConfig = {
   fields: Field[];
   searchKeys?: string[];
   filterKey?: string;
+  /** Adds a deadline/date range filter on this date column */
+  dateFilterKey?: string;
   defaultOrder?: { column: string; ascending?: boolean };
   emptyDescription: string;
 };
@@ -77,7 +106,91 @@ function coerce(fields: Field[], values: Row): Row {
   return out;
 }
 
-export function renderCell(field: Field, row: Row): ReactNode {
+/* ------------------------------- Relations -------------------------------- */
+
+export function useRefMaps(fields: Field[]) {
+  const refs = fields.filter((f) => f.type === "ref" && f.refTable);
+  const tables = Array.from(new Set(refs.map((f) => f.refTable!)));
+  const q0 = useRows(tables[0] ?? "products");
+  const q1 = useRows(tables[1] ?? "products");
+  const q2 = useRows(tables[2] ?? "products");
+  const q3 = useRows(tables[3] ?? "products");
+  const queries = [q0, q1, q2, q3];
+
+  return useMemo(() => {
+    const map: Record<string, { id: string; label: string }[]> = {};
+    tables.forEach((tbl, i) => {
+      const labelKey = refs.find((f) => f.refTable === tbl)?.refLabelKey ?? "name";
+      map[tbl] = (queries[i]?.data ?? []).map((r) => ({
+        id: String(r["id"]),
+        label: String(r[labelKey] ?? r["title"] ?? r["name"] ?? "—"),
+      }));
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q0.data, q1.data, q2.data, q3.data, tables.join("|")]);
+}
+
+/* ------------------------------ Field widgets ------------------------------ */
+
+function FileField({ field, value, onChange }: { field: Field; value: string; onChange: (v: string) => void }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+
+  const open = async () => {
+    try {
+      const url = await resolveFileUrl(value);
+      window.open(url, "_blank", "noopener");
+    } catch (e) {
+      toast.error("Fichier indisponible", { description: e instanceof Error ? e.message : undefined });
+    }
+  };
+
+  return (
+    <div className="grid gap-2">
+      {value ? (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
+          <span className="min-w-0 flex-1 truncate text-xs">{value.split("/").pop()}</span>
+          <Button type="button" size="sm" variant="ghost" onClick={open}>
+            <ExternalLink className="mr-1 h-3.5 w-3.5" /> {t("Ouvrir le fichier")}
+          </Button>
+          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onChange("")}>
+            <X className="h-3.5 w-3.5" />
+            <span className="sr-only">{t("Retirer")}</span>
+          </Button>
+        </div>
+      ) : null}
+      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground">
+        <Upload className="h-4 w-4" />
+        {busy ? t("Téléversement…") : t("Téléverser un fichier")}
+        <input
+          type="file"
+          className="sr-only"
+          disabled={busy}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            setBusy(true);
+            try {
+              const path = await uploadFile(file, field.folder ?? "general");
+              onChange(path);
+              toast.success("Fichier téléversé");
+            } catch (err) {
+              toast.error("Téléversement impossible", {
+                description: err instanceof Error ? err.message : undefined,
+              });
+            } finally {
+              setBusy(false);
+              e.target.value = "";
+            }
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+export function renderCell(field: Field, row: Row, refs?: Record<string, { id: string; label: string }[]>): ReactNode {
   const v = row[field.key];
   if (field.chip) return <StatusChip value={v} />;
   if (field.progress)
@@ -88,6 +201,18 @@ export function renderCell(field: Field, row: Row): ReactNode {
       </div>
     );
   if (v == null || v === "") return <span className="text-muted-foreground">—</span>;
+  if (field.type === "ref") {
+    const label = refs?.[field.refTable ?? ""]?.find((o) => o.id === String(v))?.label;
+    return label ? (
+      <span className="inline-flex items-center gap-1.5 text-sm">
+        <Link2 className="h-3 w-3 text-primary" />
+        {label}
+      </span>
+    ) : (
+      <span className="text-muted-foreground">—</span>
+    );
+  }
+  if (field.type === "file") return <FileCell value={String(v)} />;
   if (field.type === "currency") return <span className="num">{eur(v)}</span>;
   if (field.type === "date" || field.type === "datetime") return <span className="num">{dateFR(v)}</span>;
   if (field.type === "boolean") return v ? "Oui" : "Non";
@@ -95,24 +220,49 @@ export function renderCell(field: Field, row: Row): ReactNode {
   return <span className="line-clamp-2">{String(v)}</span>;
 }
 
+function FileCell({ value }: { value: string }) {
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+      onClick={async () => {
+        try {
+          window.open(await resolveFileUrl(value), "_blank", "noopener");
+        } catch (e) {
+          toast.error("Fichier indisponible", { description: e instanceof Error ? e.message : undefined });
+        }
+      }}
+    >
+      <ExternalLink className="h-3.5 w-3.5" />
+      {value.split("/").pop()}
+    </button>
+  );
+}
+
 export function EntityForm({
   fields,
   value,
   onChange,
+  refs,
 }: {
   fields: Field[];
   value: Row;
   onChange: (v: Row) => void;
+  refs?: Record<string, { id: string; label: string }[]>;
 }) {
+  const t = useT();
   const set = (k: string, v: unknown) => onChange({ ...value, [k]: v });
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {fields
         .filter((f) => !f.formHidden)
         .map((f) => (
-          <div key={f.key} className={cn("grid gap-1.5", f.type === "textarea" && "sm:col-span-2", f.className)}>
+          <div
+            key={f.key}
+            className={cn("grid gap-1.5", (f.type === "textarea" || f.type === "file") && "sm:col-span-2", f.className)}
+          >
             <Label htmlFor={f.key} className="text-xs font-semibold text-muted-foreground">
-              {f.label}
+              {t(f.label)}
               {f.required && <span className="text-destructive"> *</span>}
             </Label>
             {f.type === "textarea" ? (
@@ -123,15 +273,34 @@ export function EntityForm({
                 placeholder={f.placeholder}
                 onChange={(e) => set(f.key, e.target.value)}
               />
+            ) : f.type === "file" ? (
+              <FileField field={f} value={value[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
+            ) : f.type === "ref" ? (
+              <Select
+                value={value[f.key] || "__none__"}
+                onValueChange={(v) => set(f.key, v === "__none__" ? "" : v)}
+              >
+                <SelectTrigger id={f.key}>
+                  <SelectValue placeholder={t("Sélectionner…")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t("Aucun")}</SelectItem>
+                  {(refs?.[f.refTable ?? ""] ?? []).map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : f.type === "select" ? (
               <Select value={value[f.key] || undefined} onValueChange={(v) => set(f.key, v)}>
                 <SelectTrigger id={f.key}>
-                  <SelectValue placeholder="Sélectionner…" />
+                  <SelectValue placeholder={t("Sélectionner…")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(f.options ?? []).map((o) => (
                     <SelectItem key={o} value={o}>
-                      {o}
+                      {t(o)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -142,8 +311,8 @@ export function EntityForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Oui">Oui</SelectItem>
-                  <SelectItem value="Non">Non</SelectItem>
+                  <SelectItem value="Oui">{t("Oui")}</SelectItem>
+                  <SelectItem value="Non">{t("Non")}</SelectItem>
                 </SelectContent>
               </Select>
             ) : (
@@ -151,9 +320,7 @@ export function EntityForm({
                 id={f.key}
                 type={f.type === "date" ? "date" : f.type === "number" || f.type === "currency" ? "number" : "text"}
                 step={f.type === "currency" ? "0.01" : undefined}
-                value={
-                  f.type === "date" && value[f.key] ? String(value[f.key]).slice(0, 10) : (value[f.key] ?? "")
-                }
+                value={f.type === "date" && value[f.key] ? String(value[f.key]).slice(0, 10) : (value[f.key] ?? "")}
                 placeholder={f.placeholder}
                 onChange={(e) => set(f.key, e.target.value)}
               />
@@ -164,22 +331,33 @@ export function EntityForm({
   );
 }
 
+const DATE_FILTERS = ["Échéance dépassée", "Sous 30 jours", "Sous 90 jours", "Sans date"] as const;
+
 export function EntityManager({ config, extraHeader }: { config: EntityConfig; extraHeader?: ReactNode }) {
+  const t = useT();
   const { table, fields } = config;
   const { data, isLoading } = useRows(table, {
     order: config.defaultOrder?.column ?? "created_at",
     ascending: config.defaultOrder?.ascending ?? false,
   });
+  const refs = useRefMaps(fields);
   const create = useCreateRow(table);
   const update = useUpdateRow(table);
   const remove = useDeleteRow(table);
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [draft, setDraft] = useState<Row>(defaultsFrom(fields));
   const [toDelete, setToDelete] = useState<Row | null>(null);
+
+  useEffect(() => {
+    setFilter("all");
+    setDateFilter("all");
+    setQuery("");
+  }, [table]);
 
   const searchKeys = config.searchKeys ?? fields.filter((f) => (f.type ?? "text") === "text").map((f) => f.key);
   const listFields = fields.filter((f) => f.list);
@@ -192,8 +370,21 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
       r = r.filter((row) => searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q)));
     }
     if (filter !== "all" && config.filterKey) r = r.filter((row) => row[config.filterKey as string] === filter);
+    if (dateFilter !== "all" && config.dateFilterKey) {
+      const key = config.dateFilterKey;
+      const now = Date.now();
+      r = r.filter((row) => {
+        const raw = row[key];
+        if (!raw) return dateFilter === "Sans date";
+        const diff = (new Date(raw).getTime() - now) / 86_400_000;
+        if (dateFilter === "Échéance dépassée") return diff < 0;
+        if (dateFilter === "Sous 30 jours") return diff >= 0 && diff <= 30;
+        if (dateFilter === "Sous 90 jours") return diff >= 0 && diff <= 90;
+        return false;
+      });
+    }
     return r;
-  }, [data, query, filter, config.filterKey, searchKeys]);
+  }, [data, query, filter, dateFilter, config.filterKey, config.dateFilterKey, searchKeys]);
 
   const openCreate = () => {
     setEditing(null);
@@ -206,27 +397,23 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
     setOpen(true);
   };
 
+  const invalid = fields.some((f) => f.required && !f.formHidden && !draft[f.key]);
+
   const submit = () => {
-    const missing = fields.find((f) => f.required && !f.formHidden && !draft[f.key]);
-    if (missing) {
-      setDraft({ ...draft });
-      return;
-    }
+    if (invalid) return;
     const values = coerce(fields, draft);
-    if (editing) update.mutate({ id: editing['id'], values }, { onSuccess: () => setOpen(false) });
+    if (editing) update.mutate({ id: editing["id"], values }, { onSuccess: () => setOpen(false) });
     else create.mutate(values, { onSuccess: () => setOpen(false) });
   };
-
-  const invalid = fields.some((f) => f.required && !f.formHidden && !draft[f.key]);
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title={config.title}
-        description={config.description}
+        title={t(config.title)}
+        description={t(config.description)}
         actions={
           <Button onClick={openCreate} size="sm">
-            <Plus className="mr-1.5 h-4 w-4" /> {config.singular}
+            <Plus className="mr-1.5 h-4 w-4" /> {t(config.singular)}
           </Button>
         }
       />
@@ -239,37 +426,54 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher…"
+            placeholder={t("Rechercher…")}
             className="pl-9"
           />
         </div>
         {filterField?.options && (
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="all">{t("Tous les statuts")}</SelectItem>
               {filterField.options.map((o) => (
                 <SelectItem key={o} value={o}>
-                  {o}
+                  {t(o)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
-        <span className="num ml-auto text-xs text-muted-foreground">{rows.length} élément(s)</span>
+        {config.dateFilterKey && (
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("Toutes les échéances")}</SelectItem>
+              {DATE_FILTERS.map((o) => (
+                <SelectItem key={o} value={o}>
+                  {t(o)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <span className="num ms-auto text-xs text-muted-foreground">
+          {rows.length} {t("élément(s)")}
+        </span>
       </div>
 
       {isLoading ? (
         <TableSkeleton />
       ) : rows.length === 0 ? (
         <EmptyState
-          title={data && data.length > 0 ? "Aucun résultat" : `Aucun élément dans ${config.title.toLowerCase()}`}
-          description={data && data.length > 0 ? "Ajustez votre recherche ou vos filtres." : config.emptyDescription}
+          title={data && data.length > 0 ? t("Aucun résultat") : t(config.title)}
+          description={data && data.length > 0 ? t("Ajustez votre recherche ou vos filtres.") : t(config.emptyDescription)}
           action={
             <Button onClick={openCreate} size="sm">
-              <Plus className="mr-1.5 h-4 w-4" /> {config.singular}
+              <Plus className="mr-1.5 h-4 w-4" /> {t(config.singular)}
             </Button>
           }
         />
@@ -285,7 +489,7 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
                       key={f.key}
                       className="whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
                     >
-                      {f.label}
+                      {t(f.label)}
                     </th>
                   ))}
                   <th className="w-20 px-4 py-3" />
@@ -293,17 +497,17 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
               </thead>
               <tbody className="divide-y divide-border">
                 {rows.map((row) => (
-                  <tr key={row['id']} className="group transition-colors hover:bg-accent/40">
+                  <tr key={row["id"]} className="group transition-colors hover:bg-accent/40">
                     {listFields.map((f, i) => (
                       <td key={f.key} className={cn("px-4 py-3 align-middle", i === 0 && "font-medium")}>
-                        {renderCell(f, row)}
+                        {renderCell(f, row, refs)}
                       </td>
                     ))}
                     <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                      <div className="flex justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(row)}>
                           <Pencil className="h-3.5 w-3.5" />
-                          <span className="sr-only">Modifier</span>
+                          <span className="sr-only">{t("Modifier")}</span>
                         </Button>
                         <Button
                           size="icon"
@@ -312,7 +516,7 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
                           onClick={() => setToDelete(row)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          <span className="sr-only">Supprimer</span>
+                          <span className="sr-only">{t("Supprimer")}</span>
                         </Button>
                       </div>
                     </td>
@@ -325,12 +529,13 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
           {/* Mobile cards */}
           <div className="grid gap-3 md:hidden">
             {rows.map((row) => (
-              <div key={row['id']} className="panel p-4">
+              <div key={row["id"]} className="panel p-4">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                   <p className="min-w-0 truncate font-semibold">{String(row[listFields[0]?.key ?? "id"] ?? "—")}</p>
                   <div className="flex shrink-0 gap-1">
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(row)}>
                       <Pencil className="h-3.5 w-3.5" />
+                      <span className="sr-only">{t("Modifier")}</span>
                     </Button>
                     <Button
                       size="icon"
@@ -339,14 +544,15 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
                       onClick={() => setToDelete(row)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
+                      <span className="sr-only">{t("Supprimer")}</span>
                     </Button>
                   </div>
                 </div>
                 <dl className="mt-3 grid gap-2">
                   {listFields.slice(1).map((f) => (
                     <div key={f.key} className="flex items-center justify-between gap-3 text-sm">
-                      <dt className="shrink-0 text-xs text-muted-foreground">{f.label}</dt>
-                      <dd className="min-w-0 text-right">{renderCell(f, row)}</dd>
+                      <dt className="shrink-0 text-xs text-muted-foreground">{t(f.label)}</dt>
+                      <dd className="min-w-0 text-right">{renderCell(f, row, refs)}</dd>
                     </div>
                   ))}
                 </dl>
@@ -360,17 +566,17 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Modifier" : "Nouveau"} — {config.singular.replace(/^(Ajouter|Nouveau|Nouvelle)\s*/i, "")}
+              {editing ? t("Modifier") : t("Créer")} — {t(config.singular).replace(/^(Ajouter|Nouveau|Nouvelle|New)\s*/i, "")}
             </DialogTitle>
             <DialogDescription>Les champs marqués d'une astérisque sont obligatoires.</DialogDescription>
           </DialogHeader>
-          <EntityForm fields={fields} value={draft} onChange={setDraft} />
+          <EntityForm fields={fields} value={draft} onChange={setDraft} refs={refs} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Annuler
+              {t("Annuler")}
             </Button>
             <Button onClick={submit} disabled={invalid || create.isPending || update.isPending}>
-              {create.isPending || update.isPending ? "Enregistrement…" : "Enregistrer"}
+              {create.isPending || update.isPending ? "…" : t("Enregistrer")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -379,18 +585,18 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cet élément ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action est définitive et ne peut pas être annulée.</AlertDialogDescription>
+            <AlertDialogTitle>{t("Supprimer cet élément ?")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("Cette action est irréversible.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t("Annuler")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (toDelete) remove.mutate(toDelete['id']);
+                if (toDelete) remove.mutate(toDelete["id"]);
                 setToDelete(null);
               }}
             >
-              Supprimer
+              {t("Supprimer")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
