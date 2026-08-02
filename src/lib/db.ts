@@ -94,3 +94,30 @@ export const dateFR = (d: string | null | undefined) =>
 
 export const daysUntil = (d: string | null | undefined) =>
   d ? Math.ceil((new Date(d).getTime() - Date.now()) / 86_400_000) : null;
+
+/* ---------------------------------- Storage --------------------------------- */
+
+export const FILES_BUCKET = "files";
+
+/** Uploads a file to the private workspace bucket and returns its storage path. */
+export async function uploadFile(file: File, folder = "general"): Promise<string> {
+  const ext = file.name.split(".").pop() ?? "bin";
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 60);
+  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe || `fichier.${ext}`}`;
+  const { error } = await supabase.storage.from(FILES_BUCKET).upload(path, file, { upsert: false });
+  if (error) throw error;
+  return path;
+}
+
+/** Resolves a stored value (storage path or absolute URL) to an openable URL. */
+export async function resolveFileUrl(value: string): Promise<string> {
+  if (/^https?:\/\//.test(value)) return value;
+  const { data, error } = await supabase.storage.from(FILES_BUCKET).createSignedUrl(value, 60 * 60);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function removeFile(path: string) {
+  if (/^https?:\/\//.test(path)) return;
+  await supabase.storage.from(FILES_BUCKET).remove([path]);
+}
