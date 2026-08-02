@@ -56,7 +56,6 @@ const EN: Record<string, string> = {
   Supprimer: "Delete",
   Annuler: "Cancel",
   Enregistrer: "Save",
-  Créer: "Create",
   "Tous les statuts": "All statuses",
   "Toutes les échéances": "All deadlines",
   "Échéance dépassée": "Overdue",
