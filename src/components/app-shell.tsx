@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
@@ -35,19 +36,21 @@ import {
 } from "@/components/ui/command";
 import { MOBILE_NAV, NAV_GROUPS, NAV_ITEMS } from "@/lib/nav";
 import { useTheme } from "@/lib/theme";
+import { useT } from "@/lib/i18n";
 import { useRows, dateFR } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const t = useT();
   return (
     <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
       {NAV_GROUPS.map((group) => (
         <div key={group}>
           {!collapsed && (
             <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {group}
+              {t(group)}
             </p>
           )}
           <div className="space-y-0.5">
@@ -58,7 +61,7 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate
                   key={item.to}
                   to={item.to}
                   onClick={onNavigate}
-                  title={collapsed ? item.label : undefined}
+                  title={collapsed ? t(item.label) : undefined}
                   className={cn(
                     "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
                     collapsed && "justify-center px-0",
@@ -68,7 +71,7 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate
                   )}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {!collapsed && <span className="truncate">{t(item.label)}</span>}
                 </Link>
               );
             })}
@@ -80,6 +83,7 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate
 }
 
 function NotificationsButton() {
+  const t = useT();
   const { data } = useRows("notifications", { order: "created_at", ascending: false, limit: 12 });
   const unread = (data ?? []).filter((n) => !n["read"]).length;
   return (
@@ -90,14 +94,14 @@ function NotificationsButton() {
           {unread > 0 && (
             <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
           )}
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">{t("Notifications")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
-        <div className="border-b border-border px-4 py-3 text-sm font-semibold">Notifications</div>
+        <div className="border-b border-border px-4 py-3 text-sm font-semibold">{t("Notifications")}</div>
         <div className="max-h-80 divide-y divide-border overflow-y-auto">
           {(data ?? []).length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">Aucune notification.</p>
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t("Aucune notification.")}</p>
           )}
           {(data ?? []).map((n) => (
             <div key={n["id"]} className="px-4 py-3">
@@ -114,6 +118,7 @@ function NotificationsButton() {
 
 function Palette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const navigate = useNavigate();
+  const t = useT();
   const { toggle } = useTheme();
   const go = (to: string) => {
     setOpen(false);
@@ -121,10 +126,10 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => vo
   };
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Rechercher un module ou une action…" />
+      <CommandInput placeholder={t("Rechercher un module ou une action…")} />
       <CommandList>
-        <CommandEmpty>Aucun résultat.</CommandEmpty>
-        <CommandGroup heading="Actions rapides">
+        <CommandEmpty>{t("Aucun résultat.")}</CommandEmpty>
+        <CommandGroup heading={t("Actions rapides")}>
           <CommandItem onSelect={() => go("/tasks")}>Créer une tâche</CommandItem>
           <CommandItem onSelect={() => go("/meetings")}>Créer une réunion</CommandItem>
           <CommandItem onSelect={() => go("/crm")}>Ajouter un contact</CommandItem>
@@ -139,14 +144,14 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => vo
               setOpen(false);
             }}
           >
-            Changer de thème
+            {t("Changer de thème")}
           </CommandItem>
         </CommandGroup>
-        <CommandGroup heading="Modules">
+        <CommandGroup heading={t("Modules")}>
           {NAV_ITEMS.map((i) => (
             <CommandItem key={i.to} onSelect={() => go(i.to)}>
               <i.icon className="mr-2 h-4 w-4" />
-              {i.label}
+              {t(i.label)}
             </CommandItem>
           ))}
         </CommandGroup>
@@ -160,8 +165,10 @@ export function AppShell({ email }: { email: string }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggle } = useTheme();
+  const t = useT();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const qc = useQueryClient();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -175,6 +182,8 @@ export function AppShell({ email }: { email: string }) {
   }, []);
 
   const signOut = async () => {
+    await qc.cancelQueries();
+    qc.clear();
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
@@ -195,7 +204,7 @@ export function AppShell({ email }: { email: string }) {
         <div className="border-t border-sidebar-border p-2">
           <Button variant="ghost" size="sm" className="w-full justify-center" onClick={() => setCollapsed((c) => !c)}>
             {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="mr-2 h-4 w-4" />}
-            {!collapsed && "Réduire"}
+            {!collapsed && t("Réduire")}
           </Button>
         </div>
       </aside>
@@ -206,11 +215,11 @@ export function AppShell({ email }: { email: string }) {
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9 lg:hidden">
                 <Menu className="h-4 w-4" />
-                <span className="sr-only">Menu</span>
+                <span className="sr-only">{t("Menu")}</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 bg-sidebar p-0">
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
+              <SheetTitle className="sr-only">{t("Navigation")}</SheetTitle>
               <div className="flex h-16 items-center border-b border-sidebar-border px-4">
                 <Logo />
               </div>
@@ -223,7 +232,7 @@ export function AppShell({ email }: { email: string }) {
             className="group flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 sm:max-w-md"
           >
             <Search className="h-4 w-4 shrink-0" />
-            <span className="truncate">Rechercher dans PlastiFind OS…</span>
+            <span className="truncate">{t("Rechercher dans PlastiFind OS…")}</span>
             <kbd className="ml-auto hidden shrink-0 items-center gap-0.5 rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold sm:flex">
               <CommandIcon className="h-3 w-3" />K
             </kbd>
@@ -231,11 +240,11 @@ export function AppShell({ email }: { email: string }) {
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <Button size="sm" className="hidden sm:inline-flex" onClick={() => setPaletteOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" /> Créer
+              <Plus className="mr-1.5 h-4 w-4" /> {t("Créer")}
             </Button>
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggle}>
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span className="sr-only">Thème</span>
+              <span className="sr-only">{t("Thème")}</span>
             </Button>
             <NotificationsButton />
             <DropdownMenu>
@@ -250,10 +259,10 @@ export function AppShell({ email }: { email: string }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
-                  <User className="mr-2 h-4 w-4" /> Paramètres
+                  <User className="mr-2 h-4 w-4" /> {t("Paramètres")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" /> Se déconnecter
+                  <LogOut className="mr-2 h-4 w-4" /> {t("Se déconnecter")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -280,7 +289,7 @@ export function AppShell({ email }: { email: string }) {
               )}
             >
               <item.icon className="h-5 w-5" />
-              <span className="truncate px-1">{item.label}</span>
+              <span className="truncate px-1">{t(item.label)}</span>
             </Link>
           );
         })}
