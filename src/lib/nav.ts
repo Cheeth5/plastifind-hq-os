@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  Radar,
   Building2,
   Bot,
   Wrench,
@@ -21,6 +22,7 @@ import {
   Medal,
   GraduationCap,
   Settings,
+  UserCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,6 +34,7 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
+  { label: "Mission Control", to: "/mission-control", icon: Radar, group: "Pilotage" },
   { label: "Tableau de bord", to: "/dashboard", icon: LayoutDashboard, group: "Pilotage" },
   { label: "Entreprise", to: "/company", icon: Building2, group: "Pilotage" },
   { label: "Roadmap", to: "/roadmap", icon: Map, group: "Pilotage" },
@@ -56,15 +59,18 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Juridique & PI", to: "/legal", icon: Scale, group: "Organisation" },
   { label: "Concours", to: "/competitions", icon: Medal, group: "Organisation" },
   { label: "Université", to: "/university", icon: GraduationCap, group: "Organisation" },
+  { label: "Profil", to: "/profile", icon: UserCircle, group: "Organisation" },
   { label: "Paramètres", to: "/settings", icon: Settings, group: "Organisation" },
 ];
 
 export const NAV_GROUPS = ["Pilotage", "Produit & ingénierie", "Business", "Organisation"];
 
-export const MOBILE_NAV = [
-  NAV_ITEMS[0],
-  NAV_ITEMS[7],
-  NAV_ITEMS[3],
-  NAV_ITEMS[10],
-  NAV_ITEMS[9],
+const byPath = (path: string) => NAV_ITEMS.find((i) => i.to === path)!;
+
+export const MOBILE_NAV: NavItem[] = [
+  byPath("/mission-control"),
+  byPath("/dashboard"),
+  byPath("/tasks"),
+  byPath("/funding"),
+  byPath("/engineering"),
 ];
