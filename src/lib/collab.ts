@@ -171,7 +171,7 @@ export function useUpdateMessage(conversationId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, values }: { id: string; values: Row }) => {
-      const { error } = await supabase.from("messages").update(values).eq("id", id);
+      const { error } = await supabase.from("messages").update(values as never).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["messages", conversationId] }),
