@@ -25,6 +25,7 @@ import {
   Widget,
 } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
+import { DigitalTwin } from "@/components/robot/digital-twin";
 import { useRows, eur, dateFR, daysUntil } from "@/lib/db";
 
 export const Route = createFileRoute("/_authenticated/mission-control")({
@@ -167,6 +168,26 @@ function MissionControl() {
           </div>
         </div>
       </section>
+
+      {/* Digital twin — signature feature */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="eyebrow text-primary">Jumeau numérique</p>
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Labi-Bot V2 — modèle 3D live</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Explorez le robot, inspectez chaque sous-système via les points d'intérêt, lancez un scan
+              de diagnostic ou passez en mode Mission plein écran pour une démonstration.
+            </p>
+          </div>
+          <Chip tone="primary" dot>
+            Télémétrie simulée
+          </Chip>
+        </div>
+        <DigitalTwin />
+      </section>
+
+
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

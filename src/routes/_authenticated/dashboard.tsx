@@ -43,6 +43,7 @@ import {
   Widget,
 } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
+import { DigitalTwin } from "@/components/robot/digital-twin";
 import { useRows, eur, dateFR, daysUntil } from "@/lib/db";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -229,6 +230,10 @@ function Dashboard() {
           </div>
         </div>
       </section>
+
+      <DigitalTwin compact />
+
+
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
