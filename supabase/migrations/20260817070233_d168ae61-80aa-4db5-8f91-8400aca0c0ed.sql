@@ -1,0 +1,9 @@
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'founder';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'administrator';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'software_dev';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'ai_engineer';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'designer';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'marketing';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'finance';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'operations';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'intern';
