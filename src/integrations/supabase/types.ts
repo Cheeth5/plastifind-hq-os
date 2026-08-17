@@ -542,28 +542,37 @@ export type Database = {
       }
       conversation_members: {
         Row: {
+          archived: boolean
           conversation_id: string
           created_at: string
+          favorite: boolean
           id: string
           last_read_at: string
+          muted: boolean
           role: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          archived?: boolean
           conversation_id: string
           created_at?: string
+          favorite?: boolean
           id?: string
           last_read_at?: string
+          muted?: boolean
           role?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          archived?: boolean
           conversation_id?: string
           created_at?: string
+          favorite?: boolean
           id?: string
           last_read_at?: string
+          muted?: boolean
           role?: string
           updated_at?: string
           user_id?: string
@@ -584,6 +593,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          image_url: string | null
           name: string | null
           project_id: string | null
           type: Database["public"]["Enums"]["conversation_type"]
@@ -594,6 +604,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name?: string | null
           project_id?: string | null
           type?: Database["public"]["Enums"]["conversation_type"]
@@ -604,6 +615,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name?: string | null
           project_id?: string | null
           type?: Database["public"]["Enums"]["conversation_type"]
@@ -1544,31 +1556,58 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          birth_date: string | null
           created_at: string
+          disabled: boolean
           email: string | null
+          first_name: string | null
           full_name: string | null
+          gender: string | null
           id: string
+          job_role: string | null
+          last_name: string | null
+          last_seen_at: string | null
           locale: string
+          onboarding_completed: boolean
+          presence_status: string
           title: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          birth_date?: string | null
           created_at?: string
+          disabled?: boolean
           email?: string | null
+          first_name?: string | null
           full_name?: string | null
+          gender?: string | null
           id: string
+          job_role?: string | null
+          last_name?: string | null
+          last_seen_at?: string | null
           locale?: string
+          onboarding_completed?: boolean
+          presence_status?: string
           title?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          birth_date?: string | null
           created_at?: string
+          disabled?: boolean
           email?: string | null
+          first_name?: string | null
           full_name?: string | null
+          gender?: string | null
           id?: string
+          job_role?: string | null
+          last_name?: string | null
+          last_seen_at?: string | null
           locale?: string
+          onboarding_completed?: boolean
+          presence_status?: string
           title?: string | null
           updated_at?: string
         }
@@ -1814,6 +1853,27 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           actual_effort: number | null
@@ -2041,6 +2101,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presence: {
+        Row: {
+          last_seen_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          last_seen_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          last_seen_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -2064,6 +2145,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2075,9 +2160,29 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      my_permissions: {
+        Args: never
+        Returns: {
+          permission: string
+        }[]
+      }
     }
     Enums: {
-      app_role: "admin" | "engineering" | "business" | "mentor" | "viewer"
+      app_role:
+        | "admin"
+        | "engineering"
+        | "business"
+        | "mentor"
+        | "viewer"
+        | "founder"
+        | "administrator"
+        | "software_dev"
+        | "ai_engineer"
+        | "designer"
+        | "marketing"
+        | "finance"
+        | "operations"
+        | "intern"
       conversation_type: "dm" | "group" | "channel"
     }
     CompositeTypes: {
@@ -2206,7 +2311,22 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "engineering", "business", "mentor", "viewer"],
+      app_role: [
+        "admin",
+        "engineering",
+        "business",
+        "mentor",
+        "viewer",
+        "founder",
+        "administrator",
+        "software_dev",
+        "ai_engineer",
+        "designer",
+        "marketing",
+        "finance",
+        "operations",
+        "intern",
+      ],
       conversation_type: ["dm", "group", "channel"],
     },
   },
