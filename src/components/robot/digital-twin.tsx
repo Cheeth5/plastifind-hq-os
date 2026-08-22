@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import {
   Activity,
   Boxes,
@@ -12,9 +12,11 @@ import {
   ScanLine,
   X,
 } from "lucide-react";
+import { useProgress } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui-kit";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/brand/logo";
 import {
   CAMERA_PRESETS,
   HOTSPOTS,
@@ -58,6 +60,7 @@ function Ring({ value, label, unit }: { value: number; label: string; unit: stri
 }
 
 function SceneFallback() {
+  const { progress } = useProgress();
   return (
     <div className="absolute inset-0 grid place-items-center">
       <div className="flex flex-col items-center gap-3">
@@ -65,7 +68,9 @@ function SceneFallback() {
           <span className="absolute inset-0 animate-ping rounded-full bg-primary/25" />
           <span className="absolute inset-2 rounded-full border-2 border-primary/60 border-t-transparent motion-safe:animate-spin" />
         </div>
-        <p className="text-xs text-muted-foreground">Chargement du jumeau numérique…</p>
+        <Logo className="h-7 w-auto opacity-80" />
+        <p className="text-xs font-medium text-muted-foreground">Labi-Bot Digital Twin</p>
+        <p className="num text-sm font-semibold text-primary">{Math.round(progress)}%</p>
       </div>
     </div>
   );
@@ -73,6 +78,9 @@ function SceneFallback() {
 
 export function DigitalTwin({ className, compact = false }: { className?: string; compact?: boolean }) {
   const [mounted, setMounted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("normal");
   const [preset, setPreset] = useState<CameraPresetId>("hero");
   const [scanning, setScanning] = useState(false);
@@ -82,6 +90,18 @@ export function DigitalTwin({ className, compact = false }: { className?: string
   const [panelOpen, setPanelOpen] = useState(!compact);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      const isVisible = entry?.isIntersecting ?? false;
+      setVisible(isVisible);
+      if (isVisible) setShouldLoad(true);
+    }, { threshold: 0.01 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!mission) return;
@@ -98,6 +118,7 @@ export function DigitalTwin({ className, compact = false }: { className?: string
 
   const shell = (
     <div
+      ref={containerRef}
       className={cn(
         "relative overflow-hidden border border-border/70 bg-[#060b12]",
         mission ? "h-full w-full rounded-none" : "rounded-2xl",
@@ -105,13 +126,14 @@ export function DigitalTwin({ className, compact = false }: { className?: string
         className,
       )}
     >
-      {mounted ? (
+      {mounted && shouldLoad ? (
         <Suspense fallback={<SceneFallback />}>
           <RobotScene
             viewMode={viewMode}
             preset={preset}
             scanning={scanning}
             cinematic={mission}
+            active={visible}
             activeHotspot={active}
             onHotspot={setActive}
             onScanDone={() => {

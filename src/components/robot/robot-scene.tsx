@@ -20,8 +20,6 @@ import {
   type ViewMode,
 } from "@/lib/robot-twin";
 
-useGLTF.preload(MODEL_URL);
-
 const PRIMARY = "#35a9e0";
 const ACCENT = "#38d39f";
 
@@ -30,6 +28,7 @@ type SceneProps = {
   preset: CameraPresetId;
   scanning: boolean;
   cinematic?: boolean;
+  active: boolean;
   activeHotspot: string | null;
   onHotspot: (id: string | null) => void;
   onScanDone: () => void;
@@ -372,17 +371,23 @@ function Lighting() {
     <>
       <ambientLight intensity={0.45} color="#bfe6ff" />
       <directionalLight
-        ref={key}
         position={[3.5, 5, 2.5]}
         intensity={2.1}
         castShadow
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[512, 512]}
       />
       <pointLight position={[-3, 1.4, -2]} intensity={12} color={PRIMARY} distance={12} />
       <pointLight position={[2.6, 0.4, 2.6]} intensity={9} color={ACCENT} distance={10} />
       <spotLight position={[0, 5, 0]} angle={0.6} penumbra={1} intensity={14} color="#ffffff" />
     </>
   );
+}
+
+function FrameDriver({ active }: { active: boolean }) {
+  useFrame((state) => {
+    if (active) state.invalidate();
+  });
+  return null;
 }
 
 /* ------------------------------------------------------------------ scene */
@@ -392,6 +397,7 @@ export default function RobotScene({
   preset,
   scanning,
   cinematic = false,
+  active,
   activeHotspot,
   onHotspot,
   onScanDone,
@@ -413,7 +419,8 @@ export default function RobotScene({
   return (
     <Canvas
       shadows
-      dpr={[1, 1.75]}
+      frameloop="demand"
+      dpr={[1, 1.25]}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       camera={{ position: [2.1, 1.15, 3.0], fov: 42 }}
       onPointerMissed={() => onHotspot(null)}
@@ -422,6 +429,7 @@ export default function RobotScene({
       <color attach="background" args={["#060b12"]} />
       <fog attach="fog" args={["#060b12", 5, 14]} />
 
+      <FrameDriver active={active} />
       <Lighting />
       <Suspense fallback={null}>
         <Environment preset="city" environmentIntensity={0.55} />

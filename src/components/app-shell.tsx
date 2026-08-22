@@ -43,16 +43,19 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { MOBILE_NAV, NAV_GROUPS, NAV_ITEMS } from "@/lib/nav";
+import { MOBILE_NAV, NAV_GROUPS, NAV_ITEMS, NAV_PERMISSIONS } from "@/lib/nav";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 import { useRows, dateFR } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { fullNameOf, initialsOf, roleLabel, useMyPermissions, useMyProfile, useMyRole } from "@/lib/rbac";
 
 function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const t = useT();
+  const { can } = useMyPermissions();
+  const visibleItems = NAV_ITEMS.filter((item) => !NAV_PERMISSIONS[item.to] || can(NAV_PERMISSIONS[item.to]!));
   return (
     <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
       {NAV_GROUPS.map((group) => (
@@ -63,7 +66,7 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate
             <div className="mx-auto mb-2 h-px w-6 bg-sidebar-border" />
           )}
           <div className="space-y-0.5">
-            {NAV_ITEMS.filter((i) => i.group === group).map((item) => {
+            {visibleItems.filter((i) => i.group === group).map((item) => {
               const active = pathname === item.to || pathname.startsWith(item.to + "/");
               return (
                 <Link
@@ -127,11 +130,15 @@ function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
 }
 
 function SidebarFounder({ email, collapsed }: { email: string; collapsed?: boolean }) {
+  const { data: profile } = useMyProfile();
+  const { data: role } = useMyRole();
+  const name = fullNameOf(profile, email);
+  const initials = initialsOf(name);
   if (collapsed) {
     return (
       <div className="flex justify-center border-t border-sidebar-border py-3">
         <span className="grid h-8 w-8 place-items-center rounded-full border border-primary/30 bg-primary/12 text-[11px] font-bold text-primary">
-          {email.slice(0, 2).toUpperCase()}
+          {initials}
         </span>
       </div>
     );
@@ -142,11 +149,11 @@ function SidebarFounder({ email, collapsed }: { email: string; collapsed?: boole
       className="mx-3 mb-2 flex items-center gap-2.5 rounded-xl border border-sidebar-border bg-sidebar-accent/40 px-2.5 py-2 transition-colors hover:border-primary/35"
     >
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/12 text-xs font-bold text-primary">
-        {email.slice(0, 2).toUpperCase()}
+        {initials}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-xs font-semibold">Cheith</span>
-        <span className="block truncate text-[10px] text-muted-foreground">Founder & CEO</span>
+        <span className="block truncate text-xs font-semibold">{name}</span>
+        <span className="block truncate text-[10px] text-muted-foreground">{roleLabel(role)}</span>
       </span>
     </Link>
   );
@@ -219,6 +226,7 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => vo
   const navigate = useNavigate();
   const t = useT();
   const { toggle } = useTheme();
+  const { can } = useMyPermissions();
   const go = (to: string) => {
     setOpen(false);
     navigate({ to });
@@ -247,7 +255,7 @@ function Palette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => vo
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading={t("Modules")}>
-          {NAV_ITEMS.map((i) => (
+          {NAV_ITEMS.filter((i) => !NAV_PERMISSIONS[i.to] || can(NAV_PERMISSIONS[i.to]!)).map((i) => (
             <CommandItem key={i.to} onSelect={() => go(i.to)}>
               <i.icon className="mr-2 h-4 w-4" />
               {t(i.label)}
@@ -285,6 +293,8 @@ export function AppShell({ email }: { email: string }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
+  const { can } = useMyPermissions();
+  const mobileItems = MOBILE_NAV.filter((item) => !NAV_PERMISSIONS[item.to] || can(NAV_PERMISSIONS[item.to]!));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -415,7 +425,7 @@ export function AppShell({ email }: { email: string }) {
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/90 backdrop-blur-xl lg:hidden">
-        {MOBILE_NAV.map((item) => {
+        {mobileItems.map((item) => {
           if (!item) return null;
           const active = pathname === item.to;
           return (

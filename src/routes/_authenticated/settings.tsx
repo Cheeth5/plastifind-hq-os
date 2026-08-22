@@ -8,7 +8,19 @@ import { useTheme } from "@/lib/theme";
 import { LANGS, useI18n, type Lang } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Moon, Sun, LogOut } from "lucide-react";
+import { Moon, Sun, LogOut, ShieldCheck, UserRound } from "lucide-react";
+import {
+  COMPANY_ROLES,
+  FOUNDER_EMAIL,
+  fullNameOf,
+  roleLabel,
+  useMyPermissions,
+  useMyRole,
+  useSetUserDisabled,
+  useSetUserRole,
+  useTeamAccounts,
+} from "@/lib/rbac";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -35,6 +47,12 @@ function Page() {
   const { lang, setLang, t } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { can } = useMyPermissions();
+  const { data: myRole } = useMyRole();
+  const isFounder = myRole === "founder" || can("*");
+  const team = useTeamAccounts(can("users.manage"));
+  const setRole = useSetUserRole();
+  const setDisabled = useSetUserDisabled();
 
   const signOut = async () => {
     await qc.cancelQueries();
@@ -89,6 +107,69 @@ function Page() {
           </Button>
         </div>
       </section>
+
+      {can("users.manage") && (
+        <section className="panel overflow-hidden p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-bold">
+                <ShieldCheck className="h-4 w-4 text-primary" /> Gestion des utilisateurs
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">Rôles et accès des comptes membres.</p>
+            </div>
+            <Chip tone="success" dot>Accès administrateur</Chip>
+          </div>
+          <div className="mt-4 overflow-x-auto">
+            <div className="min-w-[680px] divide-y divide-border rounded-lg border border-border">
+              {(team.data ?? []).map((member) => {
+                const email = String(member["email"] ?? "");
+                const founder = email.toLowerCase() === FOUNDER_EMAIL;
+                const name = fullNameOf(member, email);
+                return (
+                  <div key={member["id"]} className="grid grid-cols-[minmax(220px,1fr)_220px_110px] items-center gap-4 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                        <UserRound className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{email || "Compte sans email"}</p>
+                      </div>
+                    </div>
+                    <Select
+                      value={String(member["role"] ?? "viewer")}
+                      disabled={founder || setRole.isPending}
+                      onValueChange={(role) => setRole.mutate({ userId: String(member["id"]), role })}
+                    >
+                      <SelectTrigger><SelectValue placeholder={roleLabel(member["role"])} /></SelectTrigger>
+                      <SelectContent>
+                        {COMPANY_ROLES.filter((role) => isFounder || (role.key !== "founder" && role.key !== "administrator")).map((role) => (
+                          <SelectItem key={role.key} value={role.key}>{role.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-xs text-muted-foreground">{member["disabled"] ? "Désactivé" : "Actif"}</span>
+                      <Switch
+                        checked={!member["disabled"]}
+                        disabled={founder || setDisabled.isPending}
+                        onCheckedChange={(enabled) =>
+                          setDisabled.mutate({ userId: String(member["id"]), disabled: !enabled })
+                        }
+                        aria-label={`Activer ${name}`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {team.isLoading && <p className="px-4 py-6 text-center text-sm text-muted-foreground">Chargement des comptes…</p>}
+              {!team.isLoading && (team.data ?? []).length === 0 && (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">Aucun compte trouvé.</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="panel p-5">
         <h2 className="text-sm font-bold">{t("Marque")}</h2>

@@ -23,6 +23,7 @@ import {
   GraduationCap,
   Settings,
   UserCircle,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,13 @@ export type NavItem = {
   to: string;
   icon: LucideIcon;
   group: string;
+};
+
+export const NAV_PERMISSIONS: Record<string, string> = {
+  "/finance": "finance.view",
+  "/funding": "funding.view",
+  "/team": "team.view",
+  "/settings": "settings.manage",
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -60,6 +68,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Concours", to: "/competitions", icon: Medal, group: "Organisation" },
   { label: "Université", to: "/university", icon: GraduationCap, group: "Organisation" },
   { label: "Profil", to: "/profile", icon: UserCircle, group: "Organisation" },
+  { label: "Messages", to: "/messages", icon: MessageSquare, group: "Organisation" },
   { label: "Paramètres", to: "/settings", icon: Settings, group: "Organisation" },
 ];
 

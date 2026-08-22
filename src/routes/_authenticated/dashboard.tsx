@@ -45,6 +45,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DigitalTwin } from "@/components/robot/digital-twin";
 import { useRows, eur, dateFR, daysUntil } from "@/lib/db";
+import { firstNameOf, useMyProfile, useSessionUser } from "@/lib/rbac";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -95,6 +96,8 @@ const CHART_TOOLTIP = {
 } as const;
 
 function Dashboard() {
+  const { data: profile } = useMyProfile();
+  const { data: user } = useSessionUser();
   const tasks = useRows("tasks", { order: "deadline", ascending: true });
   const milestones = useRows("milestones", { order: "date", ascending: true });
   const funding = useRows("funding_opportunities", { order: "deadline", ascending: true });
@@ -193,7 +196,9 @@ function Dashboard() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xl font-bold tracking-tight sm:text-2xl">Bonjour Cheith</p>
+                <p className="text-xl font-bold tracking-tight sm:text-2xl">
+                  Bonjour {firstNameOf(profile, user?.email) || "Membre"}
+                </p>
                 <p className="mt-0.5 text-sm capitalize text-muted-foreground">{today}</p>
               </div>
               <Chip tone="primary" dot>

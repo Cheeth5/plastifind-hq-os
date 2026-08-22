@@ -3,6 +3,7 @@ import { Award, Bot, Building2, Compass, Github, Linkedin, Mail, Sparkles, Targe
 import { Chip, PageHeader, Progress, StatCard, StatusChip, Widget } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { useRows, dateFR } from "@/lib/db";
+import { fullNameOf, initialsOf, roleLabel, useMyProfile, useMyRole, useSessionUser } from "@/lib/rbac";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -31,6 +32,9 @@ const SKILLS = [
 ];
 
 function ProfilePage() {
+  const { data: profile } = useMyProfile();
+  const { data: role } = useMyRole();
+  const { data: user } = useSessionUser();
   const achievements = useRows("achievements");
   const tasks = useRows("tasks", { order: "deadline", ascending: true });
   const activity = useRows("activity_log", { order: "created_at", ascending: false, limit: 8 });
@@ -59,11 +63,11 @@ function ProfilePage() {
         <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-primary/20 blur-3xl" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
           <div className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/12 text-3xl font-bold text-primary shadow-[0_0_50px_-16px_var(--color-primary)]">
-            CH
+            {initialsOf(fullNameOf(profile, user?.email))}
           </div>
           <div className="min-w-0">
-            <h2 className="text-2xl font-bold tracking-tight">Cheith</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Fondateur & CEO — PlastiFind</p>
+            <h2 className="text-2xl font-bold tracking-tight">{fullNameOf(profile, user?.email)}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{roleLabel(role)} — PlastiFind</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Chip tone="primary" dot>
                 Robotique environnementale

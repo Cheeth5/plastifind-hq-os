@@ -115,9 +115,10 @@ export function initialsOf(name: string) {
 
 /* ------------------------------ administration ----------------------------- */
 
-export function useTeamAccounts() {
+export function useTeamAccounts(enabled = true) {
   return useQuery({
     queryKey: ["team-accounts"],
+    enabled,
     queryFn: async (): Promise<Row[]> => {
       const [{ data: profiles, error }, { data: roles, error: rErr }] = await Promise.all([
         supabase.from("profiles").select("*").order("created_at", { ascending: true }),
@@ -126,7 +127,13 @@ export function useTeamAccounts() {
       if (error) throw error;
       if (rErr) throw rErr;
       const byUser: Record<string, string> = {};
-      for (const r of roles ?? []) byUser[(r as Row)["user_id"]] = (r as Row)["role"];
+      for (const r of roles ?? []) {
+        const role = (r as Row)["role"] as string;
+        const userId = (r as Row)["user_id"] as string;
+        if (!byUser[userId] || role === "founder" || (role === "administrator" && byUser[userId] !== "founder")) {
+          byUser[userId] = role;
+        }
+      }
       return (profiles ?? []).map((p) => ({ ...(p as Row), role: byUser[(p as Row)["id"]] ?? "viewer" }));
     },
   });

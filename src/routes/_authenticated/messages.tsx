@@ -102,7 +102,7 @@ function Attachment({ path, name }: { path: string; name?: string | null }) {
   );
 }
 
-function NewConversation({ meId }: { meId?: string }) {
+function NewConversation({ meId, onCreated }: { meId?: string; onCreated: (conversationId: string) => void }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<"dm" | "group" | "channel">("dm");
   const [name, setName] = useState("");
@@ -114,9 +114,15 @@ function NewConversation({ meId }: { meId?: string }) {
   const people = (profiles ?? []).filter((p) => p["id"] !== meId);
 
   const submit = async () => {
-    if (type !== "dm" && !name.trim()) return toast.error("Nom requis");
-    if (!members.length) return toast.error("Sélectionnez au moins un membre");
-    await create.mutateAsync({
+    if (type !== "dm" && !name.trim()) {
+      toast.error("Nom requis");
+      return;
+    }
+    if (!members.length) {
+      toast.error("Sélectionnez au moins un membre");
+      return;
+    }
+    const conversation = await create.mutateAsync({
       type,
       name: type === "dm" ? null : name.trim(),
       description: description.trim() || null,
@@ -126,6 +132,7 @@ function NewConversation({ meId }: { meId?: string }) {
     setName("");
     setDescription("");
     setMembers([]);
+    onCreated(String(conversation["id"]));
   };
 
   return (
@@ -212,6 +219,7 @@ function MessagesPage() {
   const profiles = useProfileMap();
   const { data: conversations, isLoading } = useConversations();
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
+  const initializedSelection = useRef(false);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
@@ -229,8 +237,13 @@ function MessagesPage() {
   }, [conversations, q, profiles, meId]);
 
   useEffect(() => {
-    if (!activeId && (conversations ?? []).length) setActiveId(conversations![0]!["id"] as string);
-  }, [conversations, activeId]);
+    const rows = conversations ?? [];
+    if (activeId && !rows.some((conversation) => conversation["id"] === activeId)) setActiveId(undefined);
+    if (!initializedSelection.current && !isLoading) {
+      initializedSelection.current = true;
+      if (rows.length) setActiveId(rows[0]!["id"] as string);
+    }
+  }, [conversations, activeId, isLoading]);
 
   const active = (conversations ?? []).find((c) => c["id"] === activeId);
   const { data: messages } = useMessages(activeId);
@@ -313,7 +326,7 @@ function MessagesPage() {
       <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* Conversation list */}
         <aside className={cn("panel flex max-h-[70vh] flex-col p-3", activeId && "hidden lg:flex")}>
-          <NewConversation meId={meId} />
+          <NewConversation meId={meId} onCreated={(conversationId) => setActiveId(conversationId)} />
           <div className="relative mt-3">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…" className="pl-8" />

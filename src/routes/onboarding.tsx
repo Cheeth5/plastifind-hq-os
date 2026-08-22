@@ -26,12 +26,15 @@ export const Route = createFileRoute("/onboarding")({
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
-    const { data: profile } = await supabase
+    const email = data.user.email?.toLowerCase();
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("onboarding_completed")
       .eq("id", data.user.id)
       .maybeSingle();
-    if (profile?.onboarding_completed) throw redirect({ to: "/dashboard" });
+    if (email === "cheithchouk@gmail.com" || profileError || profile?.onboarding_completed) {
+      throw redirect({ to: "/dashboard" });
+    }
     return { user: data.user };
   },
   component: OnboardingPage,
@@ -210,7 +213,7 @@ function OnboardingPage() {
                 administrateur.
               </p>
               <div className="grid max-h-72 gap-2 overflow-y-auto pr-1">
-                {COMPANY_ROLES.filter((r) => r.key !== "founder").map((r) => (
+                {COMPANY_ROLES.filter((r) => r.key !== "founder" && r.key !== "administrator").map((r) => (
                   <button
                     key={r.key}
                     type="button"
