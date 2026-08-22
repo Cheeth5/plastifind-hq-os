@@ -1557,7 +1557,9 @@ export type Database = {
         Row: {
           avatar_url: string | null
           birth_date: string | null
+          company_role: string | null
           created_at: string
+          date_of_birth: string | null
           disabled: boolean
           email: string | null
           first_name: string | null
@@ -1576,7 +1578,9 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           birth_date?: string | null
+          company_role?: string | null
           created_at?: string
+          date_of_birth?: string | null
           disabled?: boolean
           email?: string | null
           first_name?: string | null
@@ -1595,7 +1599,9 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           birth_date?: string | null
+          company_role?: string | null
           created_at?: string
+          date_of_birth?: string | null
           disabled?: boolean
           email?: string | null
           first_name?: string | null
@@ -2183,6 +2189,9 @@ export type Database = {
         | "finance"
         | "operations"
         | "intern"
+        | "engineer"
+        | "software_developer"
+        | "business_developer"
       conversation_type: "dm" | "group" | "channel"
     }
     CompositeTypes: {
@@ -2326,6 +2335,9 @@ export const Constants = {
         "finance",
         "operations",
         "intern",
+        "engineer",
+        "software_developer",
+        "business_developer",
       ],
       conversation_type: ["dm", "group", "channel"],
     },
