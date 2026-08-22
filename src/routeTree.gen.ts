@@ -27,6 +27,7 @@ import { Route as AuthenticatedLegalRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMarketingRouteImport } from './routes/_authenticated/marketing'
 import { Route as AuthenticatedMediaRouteImport } from './routes/_authenticated/media'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
+import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedMissionControlRouteImport } from './routes/_authenticated/mission-control'
 import { Route as AuthenticatedProductsRouteImport } from './routes/_authenticated/products'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -130,6 +131,11 @@ const AuthenticatedMeetingsRoute = AuthenticatedMeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMissionControlRoute =
   AuthenticatedMissionControlRouteImport.update({
     id: '/mission-control',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/marketing': typeof AuthenticatedMarketingRoute
   '/media': typeof AuthenticatedMediaRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/mission-control': typeof AuthenticatedMissionControlRoute
   '/products': typeof AuthenticatedProductsRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/marketing': typeof AuthenticatedMarketingRoute
   '/media': typeof AuthenticatedMediaRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/mission-control': typeof AuthenticatedMissionControlRoute
   '/products': typeof AuthenticatedProductsRoute
   '/profile': typeof AuthenticatedProfileRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/_authenticated/marketing': typeof AuthenticatedMarketingRoute
   '/_authenticated/media': typeof AuthenticatedMediaRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
+  '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/mission-control': typeof AuthenticatedMissionControlRoute
   '/_authenticated/products': typeof AuthenticatedProductsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
@@ -291,6 +300,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/media'
     | '/meetings'
+    | '/messages'
     | '/mission-control'
     | '/products'
     | '/profile'
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/media'
     | '/meetings'
+    | '/messages'
     | '/mission-control'
     | '/products'
     | '/profile'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/_authenticated/marketing'
     | '/_authenticated/media'
     | '/_authenticated/meetings'
+    | '/_authenticated/messages'
     | '/_authenticated/mission-control'
     | '/_authenticated/products'
     | '/_authenticated/profile'
@@ -497,6 +509,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMeetingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/messages': {
+      id: '/_authenticated/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AuthenticatedMessagesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mission-control': {
       id: '/_authenticated/mission-control'
       path: '/mission-control'
@@ -585,6 +604,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMarketingRoute: typeof AuthenticatedMarketingRoute
   AuthenticatedMediaRoute: typeof AuthenticatedMediaRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
+  AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedMissionControlRoute: typeof AuthenticatedMissionControlRoute
   AuthenticatedProductsRoute: typeof AuthenticatedProductsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
@@ -612,6 +632,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMarketingRoute: AuthenticatedMarketingRoute,
   AuthenticatedMediaRoute: AuthenticatedMediaRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
+  AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedMissionControlRoute: AuthenticatedMissionControlRoute,
   AuthenticatedProductsRoute: AuthenticatedProductsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
