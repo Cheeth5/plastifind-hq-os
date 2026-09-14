@@ -120,9 +120,9 @@ function AuthPage() {
   const google = async () => {
     setError(null);
     setLoading(true);
-    const { error } = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/auth` });
+    const { error } = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
     if (error) {
-      setError("Connexion Google indisponible.");
+      setError(readableError(error));
       setLoading(false);
     }
   };
@@ -130,12 +130,13 @@ function AuthPage() {
   const apple = async () => {
     setError(null);
     setLoading(true);
-    const { error } = await lovable.auth.signInWithOAuth("apple", { redirect_uri: `${window.location.origin}/auth` });
+    const { error } = await lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin });
     if (error) {
-      setError("Connexion Apple indisponible.");
+      setError(readableError(error));
       setLoading(false);
     }
   };
+
 
   const switchMode = (next: "signin" | "signup" | "reset" | "phone") => {
     setMode(next);
