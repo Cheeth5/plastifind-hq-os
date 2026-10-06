@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Apple, Chrome, Eye, EyeOff, Phone } from "lucide-react";
 import { toast } from "sonner";
@@ -147,7 +147,7 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden border-r border-border bg-sidebar lg:block">
+      <div className="dark relative hidden text-foreground overflow-hidden border-r border-border bg-background lg:block">
         <div className="grid-backdrop absolute inset-0 opacity-40" />
         <div className="absolute -left-24 top-1/3 h-96 w-96 rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-success/10 blur-3xl" />
@@ -325,6 +325,12 @@ function AuthPage() {
                 </button>
               </>
             )}
+          </p>
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            En continuant, vous acceptez nos{" "}
+            <Link to="/terms" className="underline underline-offset-2 hover:text-foreground">Conditions d'utilisation</Link>{" "}
+            et notre{" "}
+            <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">Politique de confidentialité</Link>.
           </p>
         </div>
       </div>
