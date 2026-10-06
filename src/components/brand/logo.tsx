@@ -22,8 +22,8 @@ export function Logo({ className, compact = false }: { className?: string; compa
       <LogoMark className={compact ? "h-7 w-7" : "h-8 w-8"} />
       {!compact && (
         <div className="min-w-0 leading-none">
-          <div className="truncate font-mono text-[15px] font-extrabold tracking-tight">
-            Plasti<span className="rounded-sm bg-accent-lime px-1 text-accent-foreground">Find</span>
+          <div className="truncate text-[15px] font-extrabold tracking-tight">
+            Plasti<span className="text-primary">Find</span>
           </div>
           <div className="mt-1 truncate text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             OS
