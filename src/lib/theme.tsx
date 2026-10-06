@@ -7,13 +7,13 @@ const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({
   toggle: () => {},
 });
 
-export const themeBootScript = `(function(){try{var t=localStorage.getItem('pf-theme')||'dark';document.documentElement.classList.toggle('dark',t!=='light');}catch(e){document.documentElement.classList.add('dark');}})();`;
+export const themeBootScript = `(function(){try{var t=localStorage.getItem('pf-theme')||'light';document.documentElement.classList.toggle('dark',t!=='light');}catch(e){void 0;}})();`;
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = (localStorage.getItem("pf-theme") as Theme | null) ?? "dark";
+    const stored = (localStorage.getItem("pf-theme") as Theme | null) ?? "light";
     setTheme(stored);
     document.documentElement.classList.toggle("dark", stored !== "light");
   }, []);
