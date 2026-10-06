@@ -147,7 +147,7 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden border-r border-border bg-sidebar lg:block">
+      <div className="dark relative hidden text-foreground overflow-hidden border-r border-border bg-background lg:block">
         <div className="grid-backdrop absolute inset-0 opacity-40" />
         <div className="absolute -left-24 top-1/3 h-96 w-96 rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-success/10 blur-3xl" />
