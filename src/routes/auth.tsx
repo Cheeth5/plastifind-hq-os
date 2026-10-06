@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Apple, Chrome, Eye, EyeOff, Phone } from "lucide-react";
 import { toast } from "sonner";
@@ -325,6 +325,12 @@ function AuthPage() {
                 </button>
               </>
             )}
+          </p>
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
+            En continuant, vous acceptez nos{" "}
+            <Link to="/terms" className="underline underline-offset-2 hover:text-foreground">Conditions d'utilisation</Link>{" "}
+            et notre{" "}
+            <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">Politique de confidentialité</Link>.
           </p>
         </div>
       </div>
