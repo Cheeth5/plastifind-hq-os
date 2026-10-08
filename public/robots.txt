@@ -1,14 +1,35 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
-Allow: /
+Disallow: /auth
+Disallow: /onboarding
+Disallow: /dashboard
+Disallow: /mission-control
+Disallow: /company
+Disallow: /roadmap
+Disallow: /products
+Disallow: /engineering
+Disallow: /projects
+Disallow: /tasks
+Disallow: /research
+Disallow: /business
+Disallow: /crm
+Disallow: /funding
+Disallow: /finance
+Disallow: /meetings
+Disallow: /marketing
+Disallow: /team
+Disallow: /media
+Disallow: /achievements
+Disallow: /documents
+Disallow: /legal
+Disallow: /competitions
+Disallow: /university
+Disallow: /profile
+Disallow: /messages
+Disallow: /settings
+Allow: /about
+Allow: /contact
+Allow: /legal-notice
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+

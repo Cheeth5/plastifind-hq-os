@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
-/** Placeholder PlastiFind logo. Replace the mark or wordmark from Settings > Branding. */
+/** PlastiFind bottle mark — deep-navy badge, brand-blue bottle. */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" className={cn("h-8 w-8", className)} aria-hidden="true">
+    <svg viewBox="0 0 48 48" className={cn("h-8 w-8", className)} role="img" aria-label="PlastiFind">
       <rect x="1.5" y="1.5" width="45" height="45" rx="12" className="fill-primary/12 stroke-primary/40" strokeWidth="1.5" />
       <path
         d="M20 9h8v3.2c0 1.1.5 2.1 1.4 2.8l1.6 1.3c1.3 1.1 2 2.7 2 4.4V34a5 5 0 0 1-5 5h-8a5 5 0 0 1-5-5V20.7c0-1.7.7-3.3 2-4.4l1.6-1.3c.9-.7 1.4-1.7 1.4-2.8V9Z"

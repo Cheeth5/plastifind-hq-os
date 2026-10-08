@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueries } from "@tanstack/react-query";
 import { Plus, Search, Pencil, Trash2, Upload, ExternalLink, X, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +35,9 @@ import {
   uploadFile,
   resolveFileUrl,
   type Row,
+  type TableName,
 } from "@/lib/db";
+import { supabase } from "@/integrations/supabase/client";
 import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -110,12 +113,24 @@ function coerce(fields: Field[], values: Row): Row {
 
 export function useRefMaps(fields: Field[]) {
   const refs = fields.filter((f) => f.type === "ref" && f.refTable);
-  const tables = Array.from(new Set(refs.map((f) => f.refTable!)));
-  const q0 = useRows(tables[0] ?? "products");
-  const q1 = useRows(tables[1] ?? "products");
-  const q2 = useRows(tables[2] ?? "products");
-  const q3 = useRows(tables[3] ?? "products");
-  const queries = [q0, q1, q2, q3];
+  const tableKey = Array.from(new Set(refs.map((f) => f.refTable!))).join("|");
+  const tables = useMemo(() => tableKey.split("|").filter(Boolean), [tableKey]);
+
+  // One query per referenced table, created dynamically — no cap on table count.
+  const queries = useQueries({
+    queries: tables.map((tbl) => ({
+      queryKey: ["rows", tbl, undefined, undefined, undefined] as const,
+      queryFn: async (): Promise<Row[]> => {
+        const { data, error } = await supabase
+          .from(tbl as never)
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as Row[];
+      },
+      enabled: tables.length > 0,
+    })),
+  });
 
   return useMemo(() => {
     const map: Record<string, { id: string; label: string }[]> = {};
@@ -128,7 +143,7 @@ export function useRefMaps(fields: Field[]) {
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q0.data, q1.data, q2.data, q3.data, tables.join("|")]);
+  }, [queries.map((q) => q.data).join("|"), tableKey]);
 }
 
 /* ------------------------------ Field widgets ------------------------------ */
@@ -333,17 +348,167 @@ export function EntityForm({
 
 const DATE_FILTERS = ["Échéance dépassée", "Sous 30 jours", "Sous 90 jours", "Sans date"] as const;
 
+type Refs = Record<string, { id: string; label: string }[]>;
+
+/* --------------------------- Extracted renderers --------------------------- */
+
+function EntityTable({ rows, listFields, refs, onEdit, onDelete }: {
+  rows: Row[];
+  listFields: Field[];
+  refs?: Refs;
+  onEdit: (row: Row) => void;
+  onDelete: (row: Row) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="panel hidden overflow-x-auto md:block">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border text-left">
+            {listFields.map((f) => (
+              <th
+                key={f.key}
+                className="whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                {t(f.label)}
+              </th>
+            ))}
+            <th className="w-20 px-4 py-3" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((row) => (
+            <tr key={row["id"]} className="group transition-colors hover:bg-accent/40">
+              {listFields.map((f, i) => (
+                <td key={f.key} className={cn("px-4 py-3 align-middle", i === 0 && "font-medium")}>
+                  {renderCell(f, row, refs)}
+                </td>
+              ))}
+              <td className="px-4 py-3">
+                <div className="flex justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(row)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span className="sr-only">{t("Modifier")}</span>
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => onDelete(row)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span className="sr-only">{t("Supprimer")}</span>
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EntityCards({ rows, listFields, refs, onEdit, onDelete }: {
+  rows: Row[];
+  listFields: Field[];
+  refs?: Refs;
+  onEdit: (row: Row) => void;
+  onDelete: (row: Row) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="grid gap-3 md:hidden">
+      {rows.map((row) => (
+        <div key={row["id"]} className="panel p-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+            <p className="min-w-0 truncate font-semibold">{String(row[listFields[0]?.key ?? "id"] ?? "—")}</p>
+            <div className="flex shrink-0 gap-1">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onEdit(row)}>
+                <Pencil className="h-3.5 w-3.5" />
+                <span className="sr-only">{t("Modifier")}</span>
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-destructive"
+                onClick={() => onDelete(row)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="sr-only">{t("Supprimer")}</span>
+              </Button>
+            </div>
+          </div>
+          <dl className="mt-3 grid gap-2">
+            {listFields.slice(1).map((f) => (
+              <div key={f.key} className="flex items-center justify-between gap-3 text-sm">
+                <dt className="shrink-0 text-xs text-muted-foreground">{t(f.label)}</dt>
+                <dd className="min-w-0 text-right">{renderCell(f, row, refs)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EntityDialog({ open, onOpenChange, editing, singularLabel, fields, value, onChange, refs, submitError, invalid, pending, onSubmit, onCancel }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  editing: boolean;
+  singularLabel: string;
+  fields: Field[];
+  value: Row;
+  onChange: (v: Row) => void;
+  refs?: Refs;
+  submitError: string | null;
+  invalid: boolean;
+  pending: boolean;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  const t = useT();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {editing ? t("Modifier") : t("Créer")} — {singularLabel.replace(/^(Ajouter|Nouveau|Nouvelle|New)\s*/i, "")}
+          </DialogTitle>
+          <DialogDescription>Les champs marqués d'une astérisque sont obligatoires.</DialogDescription>
+        </DialogHeader>
+        <EntityForm fields={fields} value={value} onChange={onChange} refs={refs} />
+        {submitError ? (
+          <p className="rounded-md border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {submitError}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>
+            {t("Annuler")}
+          </Button>
+          <Button onClick={onSubmit} disabled={invalid || pending}>
+            {pending ? "…" : t("Enregistrer")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function EntityManager({ config, extraHeader }: { config: EntityConfig; extraHeader?: ReactNode }) {
   const t = useT();
   const { table, fields } = config;
-  const { data, isLoading } = useRows(table, {
+  const tableName = table as TableName;
+  const { data, isLoading } = useRows(tableName, {
     order: config.defaultOrder?.column ?? "created_at",
     ascending: config.defaultOrder?.ascending ?? false,
   });
   const refs = useRefMaps(fields);
-  const create = useCreateRow(table);
-  const update = useUpdateRow(table);
-  const remove = useDeleteRow(table);
+  const create = useCreateRow(tableName);
+  const update = useUpdateRow(tableName);
+  const remove = useDeleteRow(tableName);
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("all");
@@ -397,13 +562,19 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
     setOpen(true);
   };
 
-  const invalid = fields.some((f) => f.required && !f.formHidden && !draft[f.key]);
+  // Required booleans are valid when false; only truly empty text/select/date values block submit.
+  const invalid = fields.some(
+    (f) => f.required && !f.formHidden && f.type !== "boolean" && !draft[f.key],
+  );
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const submit = () => {
+    setSubmitError(null);
     if (invalid) return;
     const values = coerce(fields, draft);
-    if (editing) update.mutate({ id: editing["id"], values }, { onSuccess: () => setOpen(false) });
-    else create.mutate(values, { onSuccess: () => setOpen(false) });
+    const onError = (e: Error) => setSubmitError(e.message);
+    if (editing) update.mutate({ id: editing["id"], values }, { onSuccess: () => setOpen(false), onError });
+    else create.mutate(values, { onSuccess: () => setOpen(false), onError });
   };
 
   return (
@@ -480,107 +651,28 @@ export function EntityManager({ config, extraHeader }: { config: EntityConfig; e
       ) : (
         <>
           {/* Desktop table */}
-          <div className="panel hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  {listFields.map((f) => (
-                    <th
-                      key={f.key}
-                      className="whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                    >
-                      {t(f.label)}
-                    </th>
-                  ))}
-                  <th className="w-20 px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rows.map((row) => (
-                  <tr key={row["id"]} className="group transition-colors hover:bg-accent/40">
-                    {listFields.map((f, i) => (
-                      <td key={f.key} className={cn("px-4 py-3 align-middle", i === 0 && "font-medium")}>
-                        {renderCell(f, row, refs)}
-                      </td>
-                    ))}
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(row)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                          <span className="sr-only">{t("Modifier")}</span>
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setToDelete(row)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span className="sr-only">{t("Supprimer")}</span>
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <EntityTable rows={rows} listFields={listFields} refs={refs} onEdit={openEdit} onDelete={setToDelete} />
 
           {/* Mobile cards */}
-          <div className="grid gap-3 md:hidden">
-            {rows.map((row) => (
-              <div key={row["id"]} className="panel p-4">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                  <p className="min-w-0 truncate font-semibold">{String(row[listFields[0]?.key ?? "id"] ?? "—")}</p>
-                  <div className="flex shrink-0 gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(row)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                      <span className="sr-only">{t("Modifier")}</span>
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => setToDelete(row)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span className="sr-only">{t("Supprimer")}</span>
-                    </Button>
-                  </div>
-                </div>
-                <dl className="mt-3 grid gap-2">
-                  {listFields.slice(1).map((f) => (
-                    <div key={f.key} className="flex items-center justify-between gap-3 text-sm">
-                      <dt className="shrink-0 text-xs text-muted-foreground">{t(f.label)}</dt>
-                      <dd className="min-w-0 text-right">{renderCell(f, row, refs)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            ))}
-          </div>
+          <EntityCards rows={rows} listFields={listFields} refs={refs} onEdit={openEdit} onDelete={setToDelete} />
         </>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? t("Modifier") : t("Créer")} — {t(config.singular).replace(/^(Ajouter|Nouveau|Nouvelle|New)\s*/i, "")}
-            </DialogTitle>
-            <DialogDescription>Les champs marqués d'une astérisque sont obligatoires.</DialogDescription>
-          </DialogHeader>
-          <EntityForm fields={fields} value={draft} onChange={setDraft} refs={refs} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              {t("Annuler")}
-            </Button>
-            <Button onClick={submit} disabled={invalid || create.isPending || update.isPending}>
-              {create.isPending || update.isPending ? "…" : t("Enregistrer")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EntityDialog
+        open={open}
+        onOpenChange={setOpen}
+        editing={!!editing}
+        singularLabel={t(config.singular)}
+        fields={fields}
+        value={draft}
+        onChange={setDraft}
+        refs={refs}
+        submitError={submitError}
+        invalid={invalid}
+        pending={create.isPending || update.isPending}
+        onSubmit={submit}
+        onCancel={() => setOpen(false)}
+      />
 
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <AlertDialogContent>

@@ -1,197 +1,608 @@
+import { useState, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Award, Bot, Building2, Compass, Github, Linkedin, Mail, Sparkles, Target } from "lucide-react";
+import {
+  Award,
+  Bot,
+  Building2,
+  Compass,
+  Github,
+  Linkedin,
+  Mail,
+  Sparkles,
+  Target,
+  Briefcase,
+  GraduationCap,
+  Pencil,
+  FileCheck,
+  FolderGit2,
+  MapPin,
+  CheckCircle2,
+  Calendar,
+  ExternalLink,
+  Clock,
+  User,
+  Shield,
+  Layers,
+} from "lucide-react";
 import { Chip, PageHeader, Progress, StatCard, StatusChip, Widget } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
-import { useRows, dateFR } from "@/lib/db";
-import { fullNameOf, initialsOf, roleLabel, useMyProfile, useMyRole, useSessionUser } from "@/lib/rbac";
+import { useRows, dateFR, type Row } from "@/lib/db";
+import {
+  fullNameOf,
+  initialsOf,
+  roleLabel,
+  useMyProfile,
+  useMyRole,
+  useSessionUser,
+} from "@/lib/rbac";
+import {
+  useProfileExt,
+  calculateProfileCompletion,
+  type Experience,
+  type Education,
+  type Certification,
+  type ProjectShowcase,
+} from "@/lib/profile-ext";
+import { ProfileEditorModal } from "@/components/profile/profile-editor";
+import { FeedComposer, ProfileFeed } from "@/components/profile/profile-feed";
+import { useResolvedFileUrl } from "@/lib/use-resolved-url";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
     meta: [
-      { title: "Profil fondateur — PlastiFind OS" },
+      { title: "Mon Profil Professionnel — PlastiFind OS" },
       {
         name: "description",
-        content: "Profil du fondateur PlastiFind : rôle, compétences, distinctions, objectifs en cours et activité.",
+        content:
+          "Profil professionnel individuel, parcours, compétences et contributions PlastiFind OS.",
       },
-      { property: "og:title", content: "Profil fondateur — PlastiFind OS" },
-      { property: "og:description", content: "Le profil du fondateur de PlastiFind, robotique environnementale." },
+      { property: "og:title", content: "Profil Professionnel — PlastiFind OS" },
+      {
+        property: "og:description",
+        content: "Profil d'équipe de la robotique environnementale PlastiFind.",
+      },
     ],
   }),
   component: ProfilePage,
 });
 
-const SKILLS = [
-  "Robotique",
-  "IA & vision par ordinateur",
-  "Systèmes embarqués",
-  "CAO / mécanique",
-  "Product management",
-  "Levée de fonds",
-  "Design industriel",
-  "Pilotage d'équipe",
+const DEFAULT_SKILLS = [
+  "Robotique & Embarqué",
+  "IA & Vision par Ordinateur",
+  "CAO & Conception 3D",
+  "ROS2 / Linux",
+  "Product Engineering",
+  "Gestion de Projet",
 ];
 
 function ProfilePage() {
   const { data: profile } = useMyProfile();
   const { data: role } = useMyRole();
   const { data: user } = useSessionUser();
+  const userId = user?.id || "";
+
+  const { data: ext } = useProfileExt(userId);
+  const [editorOpen, setEditorOpen] = useState(false);
+
   const achievements = useRows("achievements");
-  const tasks = useRows("tasks", { order: "deadline", ascending: true });
-  const activity = useRows("activity_log", { order: "created_at", ascending: false, limit: 8 });
+  const allTasks = useRows("tasks", { order: "deadline", ascending: true });
+  const allActivity = useRows("activity_log", { order: "created_at", ascending: false, limit: 30 });
   const products = useRows("products");
 
-  const open = (tasks.data ?? []).filter((t) => !["Terminé", "Annulé"].includes(t["status"]));
-  const objectives = open.filter((t) => ["Critique", "Haute"].includes(t["priority"])).slice(0, 5);
-  const labi = (products.data ?? []).find((p) => String(p["name"] ?? "").includes("Labi")) ?? (products.data ?? [])[0];
+  const myName = fullNameOf(profile, user?.email);
+  const myEmail = user?.email || "";
+
+  // Data isolation: only calculate user-relevant tasks and activity
+  const myTasks = useMemo(() => {
+    const list = (allTasks.data ?? []) as Row[];
+    if (!userId) return [];
+    return list.filter((t) => {
+      const assignee = String(t["assignee"] ?? "").toLowerCase();
+      const creator = String(t["created_by"] ?? "");
+      const emailPrefix = myEmail ? myEmail.split("@")[0]!.toLowerCase() : "";
+      return (
+        creator === userId ||
+        (myEmail && assignee === myEmail.toLowerCase()) ||
+        (myName && assignee.includes(myName.toLowerCase())) ||
+        (emailPrefix && assignee.includes(emailPrefix))
+      );
+    });
+  }, [allTasks.data, userId, myEmail, myName]);
+
+  const openTasks = myTasks.filter((t) => !["Terminé", "Annulé"].includes(t["status"]));
+  const completedTasks = myTasks.filter((t) => t["status"] === "Terminé");
+
+  const myActivity = useMemo(() => {
+    const list = (allActivity.data ?? []) as Row[];
+    if (!userId) return [];
+    return list.filter((a) => {
+      const actor = String(a["actor"] ?? "").toLowerCase();
+      const userRef = String(a["user_id"] ?? "");
+      const emailPrefix = myEmail ? myEmail.split("@")[0]!.toLowerCase() : "";
+      return (
+        userRef === userId ||
+        (myName && actor.includes(myName.toLowerCase())) ||
+        (emailPrefix && actor.includes(emailPrefix))
+      );
+    });
+  }, [allActivity.data, userId, myName, myEmail]);
+
+  const labi =
+    (products.data ?? []).find((p) => String(p["name"] ?? "").includes("Labi")) ??
+    (products.data ?? [])[0];
+
+  const skills = ext?.skills && ext.skills.length > 0 ? ext.skills : DEFAULT_SKILLS;
+  const experiences = ext?.experiences ?? [];
+  const education = ext?.education ?? [];
+  const certifications = ext?.certifications ?? [];
+  const projects = ext?.projects ?? [];
+
+  const { percent: completionPct, missing } = calculateProfileCompletion(profile, ext);
+
+  const rawAvatar = profile?.["avatar_url"] || ext?.avatarUrl;
+  const avatarUrl = useResolvedFileUrl(rawAvatar);
+  const rawBanner = ext?.bannerUrl;
+  const bannerResolved = useResolvedFileUrl(rawBanner);
+
+  const bannerStyle = ext?.bannerUrl?.startsWith("linear-gradient")
+    ? { background: ext.bannerUrl }
+    : bannerResolved
+      ? {
+          backgroundImage: `url(${bannerResolved})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
+      : { background: "linear-gradient(135deg, #091a28 0%, #0d283f 50%, #064060 100%)" };
 
   return (
     <div className="space-y-7">
       <PageHeader
-        eyebrow="Équipe"
-        title="Profil fondateur"
-        icon={<Compass className="h-5 w-5" />}
-        description="Identité, expertise et objectifs du fondateur de PlastiFind."
+        eyebrow="Identité professionnelle"
+        title="Mon Profil"
+        icon={<User className="h-5 w-5" />}
+        description="Gérez votre vitrine professionnelle, vos expertises et vos contributions PlastiFind."
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/settings">Paramètres</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setEditorOpen(true)} size="sm">
+              <Pencil className="mr-1.5 h-4 w-4" /> Modifier le profil
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/settings">Paramètres</Link>
+            </Button>
+          </div>
         }
       />
 
-      <section className="glass rise relative overflow-hidden p-6 sm:p-8">
-        <div className="grid-backdrop pointer-events-none absolute inset-0 opacity-20" />
-        <div className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
-          <div className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/12 text-3xl font-bold text-primary shadow-[0_0_50px_-16px_var(--color-primary)]">
-            {initialsOf(fullNameOf(profile, user?.email))}
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-2xl font-bold tracking-tight">{fullNameOf(profile, user?.email)}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{roleLabel(role)} — PlastiFind</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Chip tone="primary" dot>
-                Robotique environnementale
-              </Chip>
-              <Chip tone="success">Pre-Seed</Chip>
-              <Chip tone="neutral">Brest, France</Chip>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" asChild>
-                <a href="mailto:contact@plastifind.com">
-                  <Mail className="mr-1.5 h-4 w-4" /> Contact
-                </a>
-              </Button>
-              <Button size="sm" variant="ghost" asChild>
-                <a href="https://www.linkedin.com" target="_blank" rel="noreferrer">
-                  <Linkedin className="mr-1.5 h-4 w-4" /> LinkedIn
-                </a>
-              </Button>
-              <Button size="sm" variant="ghost" asChild>
-                <a href="https://github.com" target="_blank" rel="noreferrer">
-                  <Github className="mr-1.5 h-4 w-4" /> GitHub
-                </a>
-              </Button>
+      {/* LinkedIn-style Cover Banner & Header Card */}
+      <section className="glass rise relative overflow-hidden rounded-2xl border border-border/70 p-0 shadow-lg">
+        {/* Banner */}
+        <div className="h-44 w-full relative sm:h-56" style={bannerStyle}>
+          <div className="grid-backdrop pointer-events-none absolute inset-0 opacity-20" />
+          <Button
+            size="sm"
+            variant="secondary"
+            className="absolute right-4 top-4 h-8 bg-background/70 backdrop-blur hover:bg-background/90"
+            onClick={() => setEditorOpen(true)}
+          >
+            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Personnaliser la bannière
+          </Button>
+        </div>
+
+        {/* Profile info overlap */}
+        <div className="relative px-6 pb-6 pt-0 sm:px-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end -mt-16 sm:-mt-20">
+            {/* Avatar */}
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={myName}
+                className="h-28 w-28 shrink-0 rounded-2xl border-4 border-background object-cover shadow-2xl sm:h-32 sm:w-32"
+              />
+            ) : (
+              <div className="grid h-28 w-28 shrink-0 place-items-center rounded-2xl border-4 border-background bg-primary/20 text-3xl font-bold text-primary shadow-2xl sm:h-32 sm:w-32">
+                {initialsOf(myName)}
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1 space-y-1.5 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{myName}</h2>
+                  <p className="text-sm font-medium text-primary">
+                    {ext?.headline || `${roleLabel(role)} chez PlastiFind OS`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Chip tone="primary" dot>
+                    {ext?.department || "Ingénierie & Produit"}
+                  </Chip>
+                  <Chip tone="neutral">
+                    <MapPin className="mr-1 inline h-3 w-3" />
+                    {ext?.location || "Brest, France"}
+                  </Chip>
+                </div>
+              </div>
+
+              {ext?.bio ? (
+                <p className="pt-2 text-sm leading-relaxed text-muted-foreground">{ext.bio}</p>
+              ) : (
+                <p className="pt-2 text-xs italic text-muted-foreground">
+                  Aucune biographie rédigée. Cliquez sur « Modifier le profil » pour ajouter votre
+                  parcours.
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2 pt-3">
+                <Button size="sm" variant="outline" asChild>
+                  <a href={`mailto:${myEmail}`}>
+                    <Mail className="mr-1.5 h-4 w-4" /> {myEmail}
+                  </a>
+                </Button>
+                <Button size="sm" variant="ghost" asChild>
+                  <Link to="/messages">
+                    <Sparkles className="mr-1.5 h-4 w-4 text-primary" /> Message direct
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Entreprise" value="PlastiFind" hint="Robotique environnementale" icon={<Building2 className="h-4 w-4" />} />
-        <StatCard
-          label="Produit piloté"
-          value={labi?.["name"] ?? "Labi-Bot V2"}
-          hint={`${Number(labi?.["progress"] ?? 0)} % d'avancement`}
-          icon={<Bot className="h-4 w-4" />}
-          progress={Number(labi?.["progress"] ?? 0)}
-        />
-        <StatCard label="Objectifs ouverts" value={open.length} hint="Tâches en cours" icon={<Target className="h-4 w-4" />} tone="warning" />
-        <StatCard
-          label="Distinctions"
-          value={(achievements.data ?? []).length}
-          hint="Concours & reconnaissances"
-          icon={<Award className="h-4 w-4" />}
-          tone="success"
-        />
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-3">
-        <Widget title="Compétences" subtitle="Expertise principale" icon={<Sparkles className="h-4 w-4" />}>
-          <div className="flex flex-wrap gap-2">
-            {SKILLS.map((s) => (
+      {/* Profile Completion Checklist */}
+      {completionPct < 100 && (
+        <section className="glass rounded-xl border border-primary/25 bg-primary/5 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                Complétion du profil : <span className="text-primary">{completionPct}%</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Complétez ces éléments pour renforcer votre visibilité dans l'annuaire PlastiFind.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setEditorOpen(true)}>
+              Compléter mon profil
+            </Button>
+          </div>
+          <Progress value={completionPct} className="mt-3" />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {missing.map((item) => (
               <span
-                key={s}
-                className="rounded-lg border border-border bg-surface/60 px-2.5 py-1 text-xs font-medium transition-colors hover:border-primary/40 hover:text-primary"
+                key={item}
+                className="rounded-md border border-border/80 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground"
               >
-                {s}
+                ○ {item}
               </span>
             ))}
           </div>
-        </Widget>
+        </section>
+      )}
 
-        <Widget title="Objectifs en cours" subtitle="Priorités du fondateur" icon={<Target className="h-4 w-4" />} className="lg:col-span-2">
-          {objectives.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Aucun objectif prioritaire.{" "}
-              <Link to="/tasks" className="font-semibold text-primary underline-offset-4 hover:underline">
-                Créer une tâche
-              </Link>
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {objectives.map((t) => (
-                <li key={t["id"]} className="rounded-xl border border-border p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="min-w-0 truncate text-sm font-medium">{t["name"]}</p>
-                    <StatusChip value={t["status"]} />
-                  </div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <Progress value={Number(t["progress"] ?? 0)} />
-                    <span className="shrink-0 text-[11px] text-muted-foreground">{dateFR(t["deadline"])}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Widget>
+      {/* KPI Stats Row (Isolated to user) */}
+      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Tâches actives"
+          value={openTasks.length}
+          hint="Assignées ou créées"
+          icon={<Target className="h-4 w-4" />}
+          tone="warning"
+        />
+        <StatCard
+          label="Tâches terminées"
+          value={completedTasks.length}
+          hint="Contributions réalisées"
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          tone="success"
+        />
+        <StatCard
+          label="Compétences validées"
+          value={skills.length}
+          hint="Domaines d'expertise"
+          icon={<Sparkles className="h-4 w-4" />}
+          tone="primary"
+        />
+        <StatCard
+          label="Expériences & Projets"
+          value={experiences.length + projects.length}
+          hint="Parcours documenté"
+          icon={<Briefcase className="h-4 w-4" />}
+        />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
-        <Widget title="Réalisations" subtitle="Concours & reconnaissances" icon={<Award className="h-4 w-4" />}>
-          {(achievements.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune réalisation enregistrée.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {(achievements.data ?? []).map((a) => (
-                <li key={a["id"]} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <Award className="h-4 w-4 shrink-0 text-warning" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{a["title"] ?? a["name"]}</p>
-                    <p className="truncate text-xs text-muted-foreground">{a["result"] ?? a["description"] ?? "—"}</p>
+      {/* Main Grid: Left Column (Experience/Education/Projects), Right Column (Skills/Tasks/Activity) */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left 2 Cols: Career Timeline & Projects */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Experience Section */}
+          <Widget
+            title="Expérience Professionnelle"
+            subtitle="Parcours & réalisations"
+            icon={<Briefcase className="h-4 w-4" />}
+            actions={
+              <Button size="sm" variant="ghost" onClick={() => setEditorOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            }
+          >
+            {experiences.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucune expérience ajoutée.{" "}
+                <button onClick={() => setEditorOpen(true)} className="text-primary underline">
+                  Ajouter une expérience
+                </button>
+              </p>
+            ) : (
+              <div className="space-y-6">
+                {experiences.map((exp) => (
+                  <div
+                    key={exp.id}
+                    className="relative border-l-2 border-primary/30 pl-4 space-y-1"
+                  >
+                    <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-primary bg-background" />
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-sm font-bold text-foreground">{exp.role}</h4>
+                      <span className="text-xs text-muted-foreground">
+                        {exp.startDate} — {exp.current ? "Aujourd'hui" : exp.endDate || "—"}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-primary">
+                      {exp.company} {exp.location ? `· ${exp.location}` : ""}
+                    </p>
+                    {exp.description && (
+                      <p className="text-xs leading-relaxed text-muted-foreground pt-1">
+                        {exp.description}
+                      </p>
+                    )}
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Widget>
+                ))}
+              </div>
+            )}
+          </Widget>
 
-        <Widget title="Activité" subtitle="Dernières actions" icon={<Sparkles className="h-4 w-4" />}>
-          {(activity.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune activité récente.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {(activity.data ?? []).map((a) => (
-                <li key={a["id"]} className="flex flex-wrap items-center gap-x-1.5 py-2.5 text-sm">
-                  <span className="font-medium">{a["actor"]}</span>
-                  <span className="text-muted-foreground">{a["action"]}</span>
-                  <span className="font-medium">« {a["entity_label"]} »</span>
-                  <span className="ms-auto text-xs text-muted-foreground">{dateFR(a["created_at"])}</span>
-                </li>
+          {/* Education Section */}
+          <Widget
+            title="Formation & Diplômes"
+            subtitle="Parcours académique"
+            icon={<GraduationCap className="h-4 w-4" />}
+            actions={
+              <Button size="sm" variant="ghost" onClick={() => setEditorOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            }
+          >
+            {education.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucune formation renseignée.{" "}
+                <button onClick={() => setEditorOpen(true)} className="text-primary underline">
+                  Ajouter une formation
+                </button>
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {education.map((edu) => (
+                  <div
+                    key={edu.id}
+                    className="rounded-xl border border-border/70 bg-surface/40 p-3.5 space-y-1"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-sm font-bold text-foreground">
+                        {edu.degree} {edu.field ? `en ${edu.field}` : ""}
+                      </h4>
+                      <span className="text-xs text-muted-foreground">
+                        {edu.startDate} — {edu.endDate || "—"}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-primary">{edu.school}</p>
+                    {edu.description && (
+                      <p className="text-xs text-muted-foreground pt-1">{edu.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Widget>
+
+          {/* Projects Showcase */}
+          <Widget
+            title="Projets & Portfolio"
+            subtitle="Réalisations techniques et innovations"
+            icon={<FolderGit2 className="h-4 w-4" />}
+            actions={
+              <Button size="sm" variant="ghost" onClick={() => setEditorOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            }
+          >
+            {projects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucun projet mis en avant.{" "}
+                <button onClick={() => setEditorOpen(true)} className="text-primary underline">
+                  Mettre en avant un projet
+                </button>
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {projects.map((proj) => (
+                  <div
+                    key={proj.id}
+                    className="rounded-xl border border-border/70 bg-surface/50 p-4 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-sm font-bold text-foreground">{proj.name}</h4>
+                      {proj.link && (
+                        <a
+                          href={proj.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {proj.description}
+                    </p>
+                    {proj.role && (
+                      <p className="text-[11px] font-medium text-primary">Rôle : {proj.role}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Widget>
+        </div>
+
+        {/* Right Column: Skills, Certifications, Tasks, Activity */}
+        <div className="space-y-6">
+          {/* Skills Widget */}
+          <Widget
+            title="Compétences Clés"
+            subtitle="Expertises techniques"
+            icon={<Sparkles className="h-4 w-4" />}
+            actions={
+              <Button size="sm" variant="ghost" onClick={() => setEditorOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {skills.map((s) => (
+                <span
+                  key={s}
+                  className="rounded-lg border border-border bg-surface/80 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                  {s}
+                </span>
               ))}
-            </ul>
-          )}
-        </Widget>
+            </div>
+          </Widget>
+
+          {/* Certifications Widget */}
+          <Widget
+            title="Certifications"
+            subtitle="Accréditations et diplômes"
+            icon={<FileCheck className="h-4 w-4" />}
+            actions={
+              <Button size="sm" variant="ghost" onClick={() => setEditorOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            }
+          >
+            {certifications.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Aucune certification enregistrée.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {certifications.map((cert) => (
+                  <li
+                    key={cert.id}
+                    className="rounded-lg border border-border/70 bg-card p-3 space-y-1"
+                  >
+                    <p className="text-xs font-bold text-foreground">{cert.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {cert.issuer} · {cert.issueDate}
+                    </p>
+                    {cert.url && (
+                      <a
+                        href={cert.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center text-[11px] text-primary hover:underline pt-0.5"
+                      >
+                        <ExternalLink className="mr-1 h-3 w-3" /> Voir le justificatif
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Widget>
+
+          {/* User's Isolated Tasks */}
+          <Widget
+            title="Mes Tâches en cours"
+            subtitle="Priorités personnelles"
+            icon={<Target className="h-4 w-4" />}
+            actions={
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/tasks">Voir tout</Link>
+              </Button>
+            }
+          >
+            {openTasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Aucune tâche ouverte assignée.{" "}
+                <Link to="/tasks" className="text-primary hover:underline">
+                  Créer une tâche
+                </Link>
+              </p>
+            ) : (
+              <ul className="space-y-2.5">
+                {openTasks.slice(0, 4).map((t) => (
+                  <li
+                    key={t["id"]}
+                    className="rounded-lg border border-border/70 bg-surface/50 p-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate text-xs font-medium">{t["name"]}</p>
+                      <StatusChip value={t["status"]} />
+                    </div>
+                    {t["deadline"] && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Échéance : {dateFR(t["deadline"])}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Widget>
+
+          {/* User's Isolated Activity Timeline */}
+          <Widget
+            title="Mon Activité Récente"
+            subtitle="Journal personnel"
+            icon={<Clock className="h-4 w-4" />}
+          >
+            {myActivity.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Aucune activité enregistrée pour votre compte.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/60">
+                {myActivity.slice(0, 5).map((a) => (
+                  <li key={a["id"]} className="py-2 text-xs first:pt-0 last:pb-0 space-y-0.5">
+                    <p className="text-foreground font-medium">
+                      {a["action"]}{" "}
+                      <span className="text-primary">« {a["entity_label"] || a["entity"]} »</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{dateFR(a["created_at"])}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Widget>
+        </div>
+      </div>
+
+      {/* Activity Feed (LinkedIn-style) */}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <FeedComposer authorId={userId} />
+          <ProfileFeed authorId={userId} />
+        </div>
       </section>
+
+      {/* Profile Editor Modal */}
+      {editorOpen && (
+        <ProfileEditorModal
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          userId={userId}
+          profile={profile}
+        />
+      )}
     </div>
   );
 }

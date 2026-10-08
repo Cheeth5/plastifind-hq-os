@@ -1,5 +1,3 @@
-import robotAsset from "@/assets/robot.glb.asset.json";
-
 /**
  * Digital twin configuration.
  * Future-ready: swap `MODEL_URL` (or add entries to `ROBOTS`) to support
@@ -9,7 +7,8 @@ export const ROBOTS = [
   {
     id: "labi-bot-v2",
     name: "Labi-Bot V2",
-    url: robotAsset.url,
+    // Local public asset; served from public/robot.glb.
+    url: "/robot.glb",
     /** Optional GLB node names to bind hotspots to, when the model exposes them. */
     nodeBindings: {} as Record<string, string>,
   },

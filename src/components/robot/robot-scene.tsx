@@ -1,14 +1,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import {
-  ContactShadows,
-  Environment,
-  Grid,
-  Html,
-  MeshReflectorMaterial,
-  OrbitControls,
-  useGLTF,
-} from "@react-three/drei";
+import { PerformanceMonitor } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { ContactShadows, Environment, Grid, Html, OrbitControls, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import {
@@ -289,7 +283,7 @@ function ScanWave({
 
 /* -------------------------------------------------------------- particles */
 
-function Particles({ count = 260 }: { count?: number }) {
+function Particles({ count = 140 }: { count?: number }) {
   const pts = useRef<THREE.Points>(null);
   const positions = useMemo(() => {
     const a = new Float32Array(count * 3);
@@ -302,7 +296,9 @@ function Particles({ count = 260 }: { count?: number }) {
   }, [count]);
 
   useFrame((s) => {
-    if (pts.current) pts.current.rotation.y = s.clock.elapsedTime * 0.02;
+    if (!pts.current) return;
+    // Only spin while the frame is invalidated anyway; cheap sin-based drift.
+    pts.current.rotation.y = s.clock.elapsedTime * 0.02;
   });
 
   return (
@@ -331,7 +327,7 @@ function CameraRig({
 }: {
   preset: CameraPresetId;
   cinematic: boolean;
-  controls: React.MutableRefObject<any>;
+  controls: React.MutableRefObject<OrbitControlsImpl | null>;
 }) {
   const { camera } = useThree();
   const target = useMemo(() => {
@@ -370,12 +366,7 @@ function Lighting() {
   return (
     <>
       <ambientLight intensity={0.45} color="#bfe6ff" />
-      <directionalLight
-        position={[3.5, 5, 2.5]}
-        intensity={2.1}
-        castShadow
-        shadow-mapSize={[512, 512]}
-      />
+      <directionalLight position={[3.5, 5, 2.5]} intensity={2.1} />
       <pointLight position={[-3, 1.4, -2]} intensity={12} color={PRIMARY} distance={12} />
       <pointLight position={[2.6, 0.4, 2.6]} intensity={9} color={ACCENT} distance={10} />
       <spotLight position={[0, 5, 0]} angle={0.6} penumbra={1} intensity={14} color="#ffffff" />
@@ -402,11 +393,22 @@ export default function RobotScene({
   onHotspot,
   onScanDone,
 }: SceneProps) {
-  const controls = useRef<any>(null);
+  const controls = useRef<OrbitControlsImpl>(null);
   const scanY = useRef(-1.2);
   const [anchors, setAnchors] = useState<Record<string, THREE.Vector3>>({});
   const [interacting, setInteracting] = useState(false);
+  const [dpr, setDpr] = useState(1.25);
+  const [, forcePauseTick] = useState(0);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Freeze the render loop entirely when the tab is hidden.
+  useEffect(() => {
+    const onVis = () => forcePauseTick((n) => n + 1);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  const hidden = typeof document !== "undefined" && document.hidden;
 
   const pause = () => {
     setInteracting(true);
@@ -414,18 +416,28 @@ export default function RobotScene({
     idleTimer.current = setTimeout(() => setInteracting(false), 4000);
   };
 
-  useEffect(() => () => { if (idleTimer.current) clearTimeout(idleTimer.current); }, []);
+  useEffect(
+    () => () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    },
+    [],
+  );
 
   return (
     <Canvas
-      shadows
-      frameloop="demand"
-      dpr={[1, 1.25]}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
+      frameloop={hidden ? "never" : "demand"}
+      dpr={dpr}
+      gl={{ antialias: false, powerPreference: "high-performance", alpha: false }}
       camera={{ position: [2.1, 1.15, 3.0], fov: 42 }}
       onPointerMissed={() => onHotspot(null)}
       className="!absolute inset-0"
     >
+      {/* Adaptive resolution: downscale before the GPU falls behind. */}
+      <PerformanceMonitor
+        bounds={(refreshRate) => [45, 90]}
+        onDecline={() => setDpr((d) => Math.max(0.7, d - 0.2))}
+        onIncline={() => setDpr((d) => Math.min(1.5, d + 0.1))}
+      />
       <color attach="background" args={["#060b12"]} />
       <fog attach="fog" args={["#060b12", 5, 14]} />
 
@@ -450,21 +462,16 @@ export default function RobotScene({
       <ScanWave scanning={scanning} scanY={scanY} onDone={onScanDone} />
       <Particles />
 
-      {/* Glass floor + digital grid */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.05, 0]} receiveShadow>
+      {/* Glass floor + digital grid — plain standard material: the old
+          MeshReflectorMaterial re-rendered the scene every frame for a
+          reflection whose strength was 0, i.e. pure wasted GPU time. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.05, 0]}>
         <planeGeometry args={[26, 26]} />
-        <MeshReflectorMaterial
-          blur={[320, 90]}
-          resolution={720}
-          mixBlur={1}
-          mixStrength={28}
-          roughness={0.85}
-          depthScale={1.1}
-          minDepthThreshold={0.4}
-          maxDepthThreshold={1.3}
+        <meshStandardMaterial
           color="#070d15"
+          roughness={0.35}
           metalness={0.75}
-          mirror={0}
+          envMapIntensity={0.4}
         />
       </mesh>
       <Grid
@@ -480,7 +487,14 @@ export default function RobotScene({
         fadeStrength={1.4}
         infiniteGrid
       />
-      <ContactShadows position={[0, -1.03, 0]} opacity={0.5} scale={9} blur={2.6} far={3} />
+      <ContactShadows
+        position={[0, -1.03, 0]}
+        opacity={0.5}
+        scale={9}
+        blur={2.6}
+        far={3}
+        resolution={384}
+      />
 
       <OrbitControls
         ref={controls}

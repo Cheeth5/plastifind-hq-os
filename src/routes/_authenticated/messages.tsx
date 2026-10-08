@@ -1,32 +1,50 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Archive,
   ArrowLeft,
-  CornerUpLeft,
   Hash,
   Loader2,
   MessageSquare,
-  Paperclip,
-  Pencil,
+  MoreVertical,
+  Phone,
   Pin,
   Plus,
   Search,
   Send,
-  SmilePlus,
-  Trash2,
+  Star,
   Users,
+  Video,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader, EmptyState } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { EmptyState } from "@/components/ui-kit";
+import { Composer, type PendingFile } from "@/components/chat/composer";
+import { MessageItem } from "@/components/chat/message-item";
+import { InfoSidebar, ThreadPanel } from "@/components/chat/side-panels";
+import { CallModal } from "@/components/chat/call-modal";
 import {
   displayName,
+  formatClock,
   initialsOf,
   timeAgo,
   useConversations,
@@ -35,16 +53,20 @@ import {
   useDeleteMessage,
   useMarkRead,
   useMessages,
+  useMyMembership,
   usePresence,
   useProfiles,
   useProfileMap,
+  useRealtimeConversations,
   useRealtimeMessages,
   useSendMessage,
+  useSetConversationFlags,
   useToggleReaction,
   useUpdateMessage,
+  type ConversationFilter,
   type Row,
 } from "@/lib/collab";
-import { uploadFile, resolveFileUrl } from "@/lib/db";
+import { uploadFile } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/messages")({
@@ -53,7 +75,8 @@ export const Route = createFileRoute("/_authenticated/messages")({
       { title: "Messagerie interne — PlastiFind OS" },
       {
         name: "description",
-        content: "Messagerie temps réel de l'équipe PlastiFind : conversations directes, groupes, canaux et fichiers.",
+        content:
+          "Messagerie temps réel de l'équipe PlastiFind : conversations directes, groupes, canaux et fichiers.",
       },
       { property: "og:title", content: "Messagerie interne — PlastiFind OS" },
       { property: "og:description", content: "Discussions temps réel de l'équipe PlastiFind." },
@@ -64,8 +87,6 @@ export const Route = createFileRoute("/_authenticated/messages")({
   component: MessagesPage,
 });
 
-const EMOJIS = ["👍", "🎉", "🚀", "❤️", "😄", "👀"];
-
 function convTitle(c: Row, profiles: Record<string, Row>, meId?: string) {
   if (c["name"]) return c["name"] as string;
   const others = ((c["conversation_members"] ?? []) as Row[]).filter((m) => m["user_id"] !== meId);
@@ -73,36 +94,19 @@ function convTitle(c: Row, profiles: Record<string, Row>, meId?: string) {
   return others.map((m) => displayName(profiles[m["user_id"] as string])).join(", ");
 }
 
-function Attachment({ path, name }: { path: string; name?: string | null }) {
-  const [url, setUrl] = useState<string>("");
-  useEffect(() => {
-    let alive = true;
-    resolveFileUrl(path).then((u) => alive && setUrl(u)).catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [path]);
-  const isImage = /\.(png|jpe?g|gif|webp|avif)$/i.test(path);
-  if (!url) return <span className="text-xs text-muted-foreground">Chargement de la pièce jointe…</span>;
-  if (isImage)
-    return (
-      <a href={url} target="_blank" rel="noreferrer" className="block">
-        <img src={url} alt={name ?? "Pièce jointe"} loading="lazy" className="mt-2 max-h-64 rounded-lg border border-border" />
-      </a>
-    );
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs hover:border-primary/40"
-    >
-      <Paperclip className="h-3.5 w-3.5 text-primary" /> {name ?? "Fichier"}
-    </a>
-  );
+function convLastMessage(c: Row): { body: string; at: string } | null {
+  const at = c["last_message_at"] as string | undefined;
+  if (!at) return null;
+  return { body: String(c["last_message_preview"] ?? ""), at };
 }
 
-function NewConversation({ meId, onCreated }: { meId?: string; onCreated: (conversationId: string) => void }) {
+function NewConversation({
+  meId,
+  onCreated,
+}: {
+  meId?: string;
+  onCreated: (conversationId: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<"dm" | "group" | "channel">("dm");
   const [name, setName] = useState("");
@@ -164,18 +168,30 @@ function NewConversation({ meId, onCreated }: { meId?: string; onCreated: (conve
             <>
               <div className="grid gap-1.5">
                 <Label>Nom</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ingénierie Labi-Bot" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ingénierie Labi-Bot"
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label>Description</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                />
               </div>
             </>
           )}
           <div className="grid gap-1.5">
             <Label>Membres</Label>
             <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
-              {people.length === 0 && <p className="p-2 text-xs text-muted-foreground">Aucun autre membre pour le moment.</p>}
+              {people.length === 0 && (
+                <p className="p-2 text-xs text-muted-foreground">
+                  Aucun autre membre pour le moment.
+                </p>
+              )}
               {people.map((p) => {
                 const id = p["id"] as string;
                 const on = members.includes(id);
@@ -213,32 +229,83 @@ function NewConversation({ meId, onCreated }: { meId?: string; onCreated: (conve
   );
 }
 
+const FILTERS: { value: ConversationFilter; label: string; icon?: React.ReactNode }[] = [
+  { value: "all", label: "Toutes" },
+  { value: "dm", label: "Directs", icon: <MessageSquare className="h-3.5 w-3.5" /> },
+  { value: "group", label: "Groupes", icon: <Users className="h-3.5 w-3.5" /> },
+  { value: "channel", label: "Canaux", icon: <Hash className="h-3.5 w-3.5" /> },
+  { value: "favorites", label: "Favoris", icon: <Star className="h-3.5 w-3.5" /> },
+  { value: "archived", label: "Archivés", icon: <Archive className="h-3.5 w-3.5" /> },
+];
+
 function MessagesPage() {
   const { data: me } = useCurrentUser();
   const meId = me?.id;
   const profiles = useProfileMap();
   const { data: conversations, isLoading } = useConversations();
+  useRealtimeConversations();
+
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
   const initializedSelection = useRef(false);
+  const [filter, setFilter] = useState<ConversationFilter>("all");
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [replyTo, setReplyTo] = useState<Row | null>(null);
   const [editing, setEditing] = useState<Row | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [threadRoot, setThreadRoot] = useState<Row | null>(null);
+  const [threadDraft, setThreadDraft] = useState("");
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [call, setCall] = useState<{ open: boolean; video: boolean }>({
+    open: false,
+    video: false,
+  });
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const send = useSendMessage(activeId);
+  const update = useUpdateMessage(activeId);
+  const remove = useDeleteMessage(activeId);
+  const react = useToggleReaction(activeId);
+  const flags = useSetConversationFlags(activeId);
+  const markRead = useMarkRead(activeId, meId);
+
   const list = useMemo(() => {
-    const rows = conversations ?? [];
-    if (!q.trim()) return rows;
-    const needle = q.toLowerCase();
-    return rows.filter((c) => convTitle(c, profiles, meId).toLowerCase().includes(needle));
-  }, [conversations, q, profiles, meId]);
+    let rows = conversations ?? [];
+    if (filter === "favorites")
+      rows = rows.filter(
+        (c) =>
+          ((c["conversation_members"] ?? []) as Row[]).find((m) => m["user_id"] === meId)?.[
+            "favorited"
+          ],
+      );
+    else if (filter === "archived")
+      rows = rows.filter(
+        (c) =>
+          ((c["conversation_members"] ?? []) as Row[]).find((m) => m["user_id"] === meId)?.[
+            "archived"
+          ],
+      );
+    else
+      rows = rows.filter(
+        (c) =>
+          (filter === "all" ? true : c["type"] === filter) &&
+          !((c["conversation_members"] ?? []) as Row[]).find((m) => m["user_id"] === meId)?.[
+            "archived"
+          ],
+      );
+    if (q.trim()) {
+      const needle = q.toLowerCase();
+      rows = rows.filter((c) => convTitle(c, profiles, meId).toLowerCase().includes(needle));
+    }
+    return rows;
+  }, [conversations, filter, q, profiles, meId]);
 
   useEffect(() => {
     const rows = conversations ?? [];
-    if (activeId && !rows.some((conversation) => conversation["id"] === activeId)) setActiveId(undefined);
+    if (activeId && !rows.some((c) => c["id"] === activeId)) setActiveId(undefined);
     if (!initializedSelection.current && !isLoading) {
       initializedSelection.current = true;
       if (rows.length) setActiveId(rows[0]!["id"] as string);
@@ -248,11 +315,7 @@ function MessagesPage() {
   const active = (conversations ?? []).find((c) => c["id"] === activeId);
   const { data: messages } = useMessages(activeId);
   useRealtimeMessages(activeId);
-  const send = useSendMessage(activeId);
-  const update = useUpdateMessage(activeId);
-  const remove = useDeleteMessage(activeId);
-  const react = useToggleReaction(activeId);
-  const markRead = useMarkRead(activeId, meId);
+  const membership = useMyMembership(activeId, meId);
   const myName = displayName(profiles[meId ?? ""], me?.email ?? "Membre");
   const { state: presence, setTyping } = usePresence(activeId, meId, myName);
 
@@ -274,300 +337,432 @@ function MessagesPage() {
     const rows = messages ?? [];
     if (!search.trim()) return rows;
     const n = search.toLowerCase();
-    return rows.filter((m) => String(m["body"] ?? "").toLowerCase().includes(n));
+    return rows.filter((m) =>
+      String(m["body"] ?? "")
+        .toLowerCase()
+        .includes(n),
+    );
   }, [messages, search]);
 
-  const pinned = (messages ?? []).filter((m) => m["pinned"]);
+  const rootMessages = visible.filter((m) => !m["parent_id"]);
+
+  const handleFilesPicked = (files: File[]) => {
+    const items = files.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+    }));
+    setPendingFiles((prev) => [...prev, ...items]);
+  };
+
+  const flushFiles = async () => {
+    if (!pendingFiles.length) return;
+    setUploadingFiles(true);
+    try {
+      for (const p of pendingFiles) {
+        const path = await uploadFile(p.file, "messages");
+        await send.mutateAsync({
+          body: p.file.name,
+          attachment_path: path,
+          attachment_name: p.file.name,
+          attachment_type: p.file.type,
+          parent_id: (replyTo?.["id"] as string) ?? null,
+        });
+      }
+      setPendingFiles([]);
+      setReplyTo(null);
+    } catch (e) {
+      toast.error("Envoi des fichiers impossible", { description: (e as Error).message });
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
 
   const submit = async () => {
-    const body = draft.trim();
-    if (!body) return;
-    if (editing) {
-      await update.mutateAsync({ id: editing["id"] as string, values: { body, edited_at: new Date().toISOString() } });
-      setEditing(null);
+    if (!pendingFiles.length) {
+      const body = draft.trim();
+      if (!body) return;
+      if (editing) {
+        await update.mutateAsync({
+          id: editing["id"] as string,
+          values: { body, edited_at: new Date().toISOString() },
+        });
+        setEditing(null);
+        setDraft("");
+        return;
+      }
+      const mentions = Object.values(profiles)
+        .filter((p) => body.includes(`@${displayName(p).split(" ")[0]}`))
+        .map((p) => p["id"] as string);
+      await send.mutateAsync({ body, parent_id: (replyTo?.["id"] as string) ?? null, mentions });
       setDraft("");
+      setReplyTo(null);
+      setTyping(false);
       return;
     }
-    const mentions = Object.values(profiles)
-      .filter((p) => body.includes(`@${displayName(p).split(" ")[0]}`))
-      .map((p) => p["id"] as string);
-    await send.mutateAsync({ body, parent_id: (replyTo?.["id"] as string) ?? null, mentions });
-    setDraft("");
-    setReplyTo(null);
-    setTyping(false);
+    await flushFiles();
   };
 
-  const onFile = async (file: File) => {
-    setUploading(true);
-    try {
-      const path = await uploadFile(file, "messages");
-      await send.mutateAsync({
-        body: file.name,
-        attachment_path: path,
-        attachment_name: file.name,
-        attachment_type: file.type,
-      });
-    } catch (e) {
-      toast.error("Envoi du fichier impossible", { description: (e as Error).message });
-    } finally {
-      setUploading(false);
-    }
+  const submitThreadReply = async () => {
+    if (!threadRoot || !threadDraft.trim()) return;
+    await send.mutateAsync({ body: threadDraft.trim(), parent_id: threadRoot["id"] as string });
+    setThreadDraft("");
   };
+
+  const activeTitle = active ? convTitle(active, profiles, meId) : "";
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        eyebrow="Collaboration"
-        title="Messagerie interne"
-        icon={<MessageSquare className="h-5 w-5" />}
-        description="Conversations directes, groupes et canaux de l'équipe PlastiFind, en temps réel."
-      />
-
-      <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-        {/* Conversation list */}
-        <aside className={cn("panel flex max-h-[70vh] flex-col p-3", activeId && "hidden lg:flex")}>
-          <NewConversation meId={meId} onCreated={(conversationId) => setActiveId(conversationId)} />
-          <div className="relative mt-3">
+    <div className="-m-4 flex h-[calc(100vh-6rem)] gap-0 overflow-hidden lg:m-0 lg:h-[calc(100vh-4rem)]">
+      {/* ------------------------------ LEFT RAIL ------------------------------ */}
+      <aside
+        className={cn(
+          "flex w-80 min-w-72 flex-col border-r border-border bg-card",
+          activeId && "hidden lg:flex",
+        )}
+      >
+        <div className="space-y-3 border-b border-border p-3">
+          <NewConversation meId={meId} onCreated={(id) => setActiveId(id)} />
+          <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher…" className="pl-8" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Rechercher une conversation…"
+              className="pl-8"
+            />
           </div>
-          <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto">
-            {isLoading && <p className="p-3 text-xs text-muted-foreground">Chargement…</p>}
-            {!isLoading && list.length === 0 && (
-              <p className="p-3 text-xs text-muted-foreground">Aucune conversation. Créez-en une pour démarrer.</p>
-            )}
-            {list.map((c) => {
-              const on = c["id"] === activeId;
-              const Icon = c["type"] === "channel" ? Hash : c["type"] === "group" ? Users : MessageSquare;
-              return (
-                <button
-                  key={c["id"]}
-                  onClick={() => setActiveId(c["id"] as string)}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
-                    on ? "bg-primary/12 text-primary" : "hover:bg-accent/50",
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{convTitle(c, profiles, meId)}</span>
-                    <span className="block truncate text-[11px] text-muted-foreground">{timeAgo(c["updated_at"])}</span>
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap gap-1">
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={cn(
+                  "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                  filter === f.value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-accent/60 text-muted-foreground hover:bg-accent",
+                )}
+              >
+                {f.icon}
+                {f.label}
+              </button>
+            ))}
           </div>
-        </aside>
+        </div>
 
-        {/* Chat */}
-        <section className={cn("panel flex max-h-[70vh] min-h-[520px] flex-col", !activeId && "hidden lg:flex")}>
-          {!active ? (
-            <div className="grid flex-1 place-items-center p-6">
-              <EmptyState
-                title="Aucune conversation sélectionnée"
-                description="Créez une conversation directe, un groupe ou un canal pour commencer à collaborer."
-              />
-            </div>
-          ) : (
-            <>
-              <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-                <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setActiveId(undefined)}>
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{convTitle(active, profiles, meId)}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {typingNames.length ? `${typingNames.join(", ")} écrit…` : `${((active["conversation_members"] ?? []) as Row[]).length} membre(s)`}
-                  </p>
-                </div>
-                <div className="relative hidden sm:block">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Rechercher un message"
-                    className="h-8 w-48 pl-8 text-xs"
-                  />
-                </div>
-              </header>
-
-              {pinned.length > 0 && (
-                <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-4 py-2 text-xs">
-                  <Pin className="h-3.5 w-3.5 text-primary" />
-                  <span className="truncate">{pinned[pinned.length - 1]!["body"]}</span>
-                </div>
-              )}
-
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
-                {visible.length === 0 && (
-                  <p className="py-10 text-center text-sm text-muted-foreground">Aucun message. Dites bonjour 👋</p>
-                )}
-                {visible.map((m) => {
-                  const mine = m["user_id"] === meId;
-                  const author = profiles[m["user_id"] as string];
-                  const parent = (messages ?? []).find((x) => x["id"] === m["parent_id"]);
-                  const reactions = ((m["message_reactions"] ?? []) as Row[]).reduce<Record<string, Row[]>>((acc, r) => {
-                    (acc[r["emoji"] as string] ||= []).push(r);
-                    return acc;
-                  }, {});
-                  return (
-                    <div key={m["id"]} className={cn("group flex gap-2.5", mine && "flex-row-reverse")}>
-                      <span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border bg-surface text-[10px] font-bold">
-                        {initialsOf(displayName(author, "?"))}
-                      </span>
-                      <div className={cn("min-w-0 max-w-[85%]", mine && "text-right")}>
-                        <p className="text-[11px] text-muted-foreground">
-                          {displayName(author, mine ? "Vous" : "Membre")} · {timeAgo(m["created_at"])}
-                          {m["edited_at"] && " · (modifié)"}
-                        </p>
-                        {parent && (
-                          <p className="mt-1 truncate rounded-md border-l-2 border-primary/50 bg-accent/40 px-2 py-1 text-left text-[11px] text-muted-foreground">
-                            {parent["body"]}
-                          </p>
-                        )}
-                        <div
-                          className={cn(
-                            "mt-1 inline-block rounded-2xl px-3.5 py-2 text-left text-sm",
-                            mine ? "bg-primary text-primary-foreground" : "border border-border bg-surface",
-                          )}
-                        >
-                          <span className="whitespace-pre-wrap break-words">{m["body"]}</span>
-                          {m["attachment_path"] && <Attachment path={m["attachment_path"]} name={m["attachment_name"]} />}
-                        </div>
-
-                        <div className={cn("mt-1 flex flex-wrap items-center gap-1", mine && "justify-end")}>
-                          {Object.entries(reactions).map(([emoji, rows]) => {
-                            const mineR = rows.find((r) => r["user_id"] === meId);
-                            return (
-                              <button
-                                key={emoji}
-                                onClick={() =>
-                                  react.mutate({
-                                    messageId: m["id"] as string,
-                                    emoji,
-                                    ...(mineR ? { existingId: mineR["id"] as string } : {}),
-                                  })
-                                }
-                                className={cn(
-                                  "rounded-full border px-1.5 py-0.5 text-[11px] transition-colors",
-                                  mineR ? "border-primary bg-primary/12 text-primary" : "border-border hover:bg-accent",
-                                )}
-                              >
-                                {emoji} {rows.length}
-                              </button>
-                            );
-                          })}
-                          <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                            {EMOJIS.map((e) => (
-                              <button
-                                key={e}
-                                onClick={() => react.mutate({ messageId: m["id"] as string, emoji: e })}
-                                className="rounded px-1 text-[13px] hover:bg-accent"
-                                aria-label={`Réagir ${e}`}
-                              >
-                                {e}
-                              </button>
-                            ))}
-                            <button className="rounded p-1 hover:bg-accent" title="Répondre" onClick={() => setReplyTo(m)}>
-                              <CornerUpLeft className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              className="rounded p-1 hover:bg-accent"
-                              title="Épingler"
-                              onClick={() => update.mutate({ id: m["id"] as string, values: { pinned: !m["pinned"] } })}
-                            >
-                              <Pin className="h-3.5 w-3.5" />
-                            </button>
-                            {mine && (
-                              <>
-                                <button
-                                  className="rounded p-1 hover:bg-accent"
-                                  title="Modifier"
-                                  onClick={() => {
-                                    setEditing(m);
-                                    setDraft(m["body"] as string);
-                                  }}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  className="rounded p-1 text-destructive hover:bg-accent"
-                                  title="Supprimer"
-                                  onClick={() => remove.mutate(m["id"] as string)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={bottomRef} />
-              </div>
-
-              <footer className="border-t border-border p-3">
-                {(replyTo || editing) && (
-                  <div className="mb-2 flex items-center gap-2 rounded-md bg-accent/50 px-2.5 py-1.5 text-xs">
-                    <span className="truncate">
-                      {editing ? "Modification" : "Réponse"} : {(editing ?? replyTo)?.["body"]}
-                    </span>
-                    <button
-                      className="ml-auto"
-                      onClick={() => {
-                        setReplyTo(null);
-                        setEditing(null);
-                        setDraft("");
-                      }}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-end gap-2">
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void onFile(f);
-                      e.target.value = "";
-                    }}
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-                  </Button>
-                  <Textarea
-                    value={draft}
-                    rows={1}
-                    onChange={(e) => {
-                      setDraft(e.target.value);
-                      setTyping(!!e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        void submit();
-                      }
-                    }}
-                    placeholder="Écrire un message… (@ pour mentionner)"
-                    className="max-h-32 min-h-10 flex-1 resize-none"
-                  />
-                  <Button size="icon" onClick={() => void submit()} disabled={send.isPending || !draft.trim()}>
-                    {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <SmilePlus className="h-3 w-3" /> Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne
-                </p>
-              </footer>
-            </>
+        <div className="min-h-0 flex-1 overflow-y-auto py-1.5">
+          {isLoading && <p className="p-3 text-xs text-muted-foreground">Chargement…</p>}
+          {!isLoading && list.length === 0 && (
+            <p className="p-3 text-xs text-muted-foreground">Aucune conversation dans cette vue.</p>
           )}
-        </section>
-      </div>
+          {list.map((c) => {
+            const on = c["id"] === activeId;
+            const isChannel = c["type"] === "channel";
+            const last = convLastMessage(c);
+            const member = ((c["conversation_members"] ?? []) as Row[]).find(
+              (m) => m["user_id"] === meId,
+            );
+            const unread = member ? false : false;
+            const other = ((c["conversation_members"] ?? []) as Row[]).find(
+              (m) => m["user_id"] !== meId,
+            );
+            const avatar = isChannel
+              ? null
+              : (profiles[other?.["user_id"] as string]?.["avatar_url"] as string | undefined);
+            return (
+              <button
+                key={c["id"]}
+                onClick={() => {
+                  setActiveId(c["id"] as string);
+                  setThreadRoot(null);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors",
+                  on ? "bg-primary/10 border-r-2 border-primary" : "hover:bg-accent/50",
+                )}
+              >
+                <span className="relative shrink-0">
+                  {avatar ? (
+                    <img src={avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+                  ) : (
+                    <span
+                      className={cn(
+                        "grid h-9 w-9 place-items-center rounded-full border border-border text-[10px] font-bold",
+                        on ? "bg-primary/15 text-primary" : "bg-surface",
+                      )}
+                    >
+                      {isChannel ? (
+                        <Hash className="h-4 w-4" />
+                      ) : (
+                        initialsOf(convTitle(c, profiles, meId))
+                      )}
+                    </span>
+                  )}
+                  {c["type"] === "dm" && other && (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-sm font-semibold">
+                      {convTitle(c, profiles, meId)}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {formatClock(last?.at ?? c["updated_at"])}
+                    </span>
+                  </span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {last?.body ||
+                        `${((c["conversation_members"] ?? []) as Row[]).length} membre(s)`}
+                    </span>
+                    {member?.["favorited"] && (
+                      <Star className="h-3 w-3 shrink-0 fill-warning text-warning" />
+                    )}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      {/* ------------------------------ CENTER CHAT ---------------------------- */}
+      <section
+        className={cn("flex min-w-0 flex-1 flex-col bg-background", !activeId && "hidden lg:flex")}
+      >
+        {!active ? (
+          <div className="grid flex-1 place-items-center p-6">
+            <EmptyState
+              title="Aucune conversation sélectionnée"
+              description="Créez une conversation directe, un groupe ou un canal pour commencer à collaborer."
+            />
+          </div>
+        ) : (
+          <>
+            <header className="flex items-center gap-3 border-b border-border px-4 py-2.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
+                onClick={() => setActiveId(undefined)}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold">{activeTitle}</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {typingNames.length ? (
+                    <span className="text-primary">{typingNames.join(", ")} écrit…</span>
+                  ) : active["type"] === "dm" ? (
+                    "En ligne"
+                  ) : (
+                    `${((active["conversation_members"] ?? []) as Row[]).length} membres`
+                  )}
+                </p>
+              </div>
+              <div className="relative hidden sm:block">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher dans la conversation"
+                  className="h-8 w-48 pl-8 text-xs"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Appel audio"
+                onClick={() => setCall({ open: true, video: false })}
+              >
+                <Phone className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Appel vidéo"
+                onClick={() => setCall({ open: true, video: true })}
+              >
+                <Video className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={infoOpen ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                title="Informations"
+                onClick={() => setInfoOpen((o) => !o)}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  aria-label="Options"
+                >
+                  <Archive className="h-4 w-4" />
+                </Button>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 top-9 z-50 w-44 overflow-hidden rounded-lg border border-border bg-popover py-1 text-sm shadow-lg">
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-1.5 hover:bg-accent"
+                        onClick={() => {
+                          flags.mutate({ flag: "favorited", value: !membership?.["favorited"] });
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Star className="h-3.5 w-3.5" />{" "}
+                        {membership?.["favorited"] ? "Retirer des favoris" : "Ajouter aux favoris"}
+                      </button>
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-1.5 hover:bg-accent"
+                        onClick={() => {
+                          flags.mutate({ flag: "archived", value: !membership?.["archived"] });
+                          setMenuOpen(false);
+                          setActiveId(undefined);
+                        }}
+                      >
+                        <Archive className="h-3.5 w-3.5" />{" "}
+                        {membership?.["archived"] ? "Désarchiver" : "Archiver"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </header>
+
+            {(messages ?? []).some((m) => m["pinned"]) && (
+              <div className="flex items-center gap-2 border-b border-border bg-primary/5 px-4 py-1.5 text-xs">
+                <Pin className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span className="truncate">
+                  {(messages ?? []).filter((m) => m["pinned"]).slice(-1)[0]?.["body"]}
+                </span>
+              </div>
+            )}
+
+            <div className="min-h-0 flex-1 overflow-y-auto py-3">
+              {rootMessages.length === 0 && (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  Aucun message. Dites bonjour 👋
+                </p>
+              )}
+              {rootMessages.map((m) => {
+                const mine = m["user_id"] === meId;
+                const reactions = ((m["message_reactions"] ?? []) as Row[]).reduce<
+                  Record<string, Row[]>
+                >((acc, r) => {
+                  (acc[r["emoji"] as string] ||= []).push(r);
+                  return acc;
+                }, {});
+                const threadCount = (messages ?? []).filter(
+                  (x) => x["parent_id"] === m["id"],
+                ).length;
+                return (
+                  <MessageItem
+                    key={m["id"]}
+                    message={m}
+                    mine={mine}
+                    author={profiles[m["user_id"] as string]}
+                    parent={null}
+                    reactions={reactions}
+                    meId={meId}
+                    threadCount={threadCount}
+                    onReply={() => setThreadRoot(m)}
+                    onReact={(emoji, existingId) =>
+                      react.mutate({
+                        messageId: m["id"] as string,
+                        emoji,
+                        ...(existingId ? { existingId } : {}),
+                      })
+                    }
+                    onEdit={() => {
+                      setEditing(m);
+                      setDraft(m["body"] as string);
+                    }}
+                    onDelete={() => remove.mutate(m["id"] as string)}
+                    onPin={() =>
+                      update.mutate({ id: m["id"] as string, values: { pinned: !m["pinned"] } })
+                    }
+                    onOpenThread={() => setThreadRoot(m)}
+                  />
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
+
+            <Composer
+              draft={draft}
+              onDraftChange={setDraft}
+              onSend={() => void submit()}
+              onTyping={setTyping}
+              sending={send.isPending}
+              replyPreview={
+                replyTo
+                  ? {
+                      author: displayName(profiles[replyTo["user_id"] as string], "Membre"),
+                      body: replyTo["body"] as string,
+                    }
+                  : null
+              }
+              editingPreview={editing ? { body: editing["body"] as string } : null}
+              onCancelContext={() => {
+                setReplyTo(null);
+                setEditing(null);
+                setDraft("");
+              }}
+              onFilesPicked={handleFilesPicked}
+              pendingFiles={pendingFiles}
+              onRemoveFile={(id) => setPendingFiles((prev) => prev.filter((p) => p.id !== id))}
+              uploadingFiles={uploadingFiles}
+            />
+          </>
+        )}
+      </section>
+
+      {/* ------------------------------ RIGHT PANEL ---------------------------- */}
+      {active && threadRoot && (
+        <ThreadPanel
+          root={threadRoot}
+          allMessages={messages ?? []}
+          profiles={profiles}
+          meId={meId}
+          onClose={() => setThreadRoot(null)}
+          onSendReply={() => void submitThreadReply()}
+          sending={send.isPending}
+          replyDraft={threadDraft}
+          onReplyDraft={setThreadDraft}
+        />
+      )}
+      {active && infoOpen && !threadRoot && (
+        <InfoSidebar
+          conversation={active}
+          profiles={profiles}
+          meId={meId}
+          messages={messages ?? []}
+          onClose={() => setInfoOpen(false)}
+        />
+      )}
+
+      <CallModal
+        open={call.open}
+        onOpenChange={(open) => setCall((c) => ({ ...c, open }))}
+        calleeName={activeTitle || "Conversation"}
+        calleeAvatar={
+          (profiles[
+            ((active?.["conversation_members"] ?? []) as Row[]).find(
+              (m) => m["user_id"] !== meId,
+            )?.["user_id"] as string
+          ]?.["avatar_url"] as string) ?? undefined
+        }
+        isVideo={call.video}
+      />
     </div>
   );
 }

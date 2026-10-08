@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Component, Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
   Boxes,
@@ -27,6 +27,30 @@ import {
 } from "@/lib/robot-twin";
 
 const RobotScene = lazy(() => import("./robot-scene"));
+
+/** Keeps a failing 3D scene (missing model, WebGL error) from crashing the page. */
+class SceneErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  override state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  override render() {
+    if (this.state.error) {
+      return (
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <Boxes className="h-8 w-8 text-primary/60" />
+            <p className="text-xs font-medium text-muted-foreground">Labi-Bot Digital Twin</p>
+            <p className="text-[11px] text-muted-foreground/70">
+              Vue 3D indisponible pour le moment.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function Ring({ value, label, unit }: { value: number; label: string; unit: string }) {
   const r = 18;
@@ -76,7 +100,13 @@ function SceneFallback() {
   );
 }
 
-export function DigitalTwin({ className, compact = false }: { className?: string; compact?: boolean }) {
+export function DigitalTwin({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -91,14 +121,27 @@ export function DigitalTwin({ className, compact = false }: { className?: string
 
   useEffect(() => setMounted(true), []);
 
+  // Respect prefers-reduced-motion: disable idle animations & spin.
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReducedMotion(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      const isVisible = entry?.isIntersecting ?? false;
-      setVisible(isVisible);
-      if (isVisible) setShouldLoad(true);
-    }, { threshold: 0.01 });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const isVisible = entry?.isIntersecting ?? false;
+        setVisible(isVisible);
+        if (isVisible) setShouldLoad(true);
+      },
+      { threshold: 0.01 },
+    );
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -126,23 +169,25 @@ export function DigitalTwin({ className, compact = false }: { className?: string
         className,
       )}
     >
-      {mounted && shouldLoad ? (
-        <Suspense fallback={<SceneFallback />}>
-          <RobotScene
-            viewMode={viewMode}
-            preset={preset}
-            scanning={scanning}
-            cinematic={mission}
-            active={visible}
-            activeHotspot={active}
-            onHotspot={setActive}
-            onScanDone={() => {
-              setScanning(false);
-              setScanDone(true);
-              setTimeout(() => setScanDone(false), 3200);
-            }}
-          />
-        </Suspense>
+      {mounted && shouldLoad && visible ? (
+        <SceneErrorBoundary>
+          <Suspense fallback={<SceneFallback />}>
+            <RobotScene
+              viewMode={viewMode}
+              preset={preset}
+              scanning={scanning}
+              cinematic={mission}
+              active={visible && !reducedMotion}
+              activeHotspot={active}
+              onHotspot={setActive}
+              onScanDone={() => {
+                setScanning(false);
+                setScanDone(true);
+                setTimeout(() => setScanDone(false), 3200);
+              }}
+            />
+          </Suspense>
+        </SceneErrorBoundary>
       ) : (
         <SceneFallback />
       )}
@@ -280,7 +325,9 @@ export function DigitalTwin({ className, compact = false }: { className?: string
               {hotspot.status}
             </Chip>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{hotspot.description}</p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            {hotspot.description}
+          </p>
 
           <dl className="mt-3 space-y-1.5 rounded-xl border border-border/60 bg-surface/40 p-3 text-xs">
             {hotspot.specs.map(([k, v]) => (

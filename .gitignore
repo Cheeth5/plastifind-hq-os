@@ -16,6 +16,15 @@ dist-ssr
 .nitro
 *.local
 
+# Local analysis artifacts
+tsc-err.txt
+tsc-out.txt
+dashboard-check.png
+
+# Supabase local temp
+supabase/.temp/
+supabase/types.ts.new
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

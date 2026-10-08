@@ -34,14 +34,14 @@ export function useProfileMap() {
   const { data } = useProfiles();
   return useMemo(() => {
     const map: Record<string, Row> = {};
-    for (const p of data ?? []) map[p['id'] as string] = p;
+    for (const p of data ?? []) map[p["id"] as string] = p;
     return map;
   }, [data]);
 }
 
 export function displayName(profile?: Row, fallback = "Membre") {
   if (!profile) return fallback;
-  return (profile['full_name'] as string) || (profile['email'] as string) || fallback;
+  return (profile["full_name"] as string) || (profile["email"] as string) || fallback;
 }
 
 export function initialsOf(name: string) {
@@ -83,7 +83,11 @@ export function useCreateConversation() {
       if (!me) throw new Error("Session expirée");
       const { data, error } = await supabase
         .from("conversations")
-        .insert({ type: input.type, name: input.name ?? null, description: input.description ?? null })
+        .insert({
+          type: input.type,
+          name: input.name ?? null,
+          description: input.description ?? null,
+        })
         .select()
         .single();
       if (error) throw error;
@@ -147,7 +151,10 @@ export function useSendMessage(conversationId?: string) {
         .select()
         .single();
       if (error) throw error;
-      await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+      await supabase
+        .from("conversations")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", conversationId);
       if ((input.mentions ?? []).length) {
         await supabase.from("notifications").insert(
           (input.mentions ?? []).map((uid) => ({
@@ -171,7 +178,10 @@ export function useUpdateMessage(conversationId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, values }: { id: string; values: Row }) => {
-      const { error } = await supabase.from("messages").update(values as never).eq("id", id);
+      const { error } = await supabase
+        .from("messages")
+        .update(values as never)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["messages", conversationId] }),
@@ -194,13 +204,23 @@ export function useDeleteMessage(conversationId?: string) {
 export function useToggleReaction(conversationId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ messageId, emoji, existingId }: { messageId: string; emoji: string; existingId?: string }) => {
+    mutationFn: async ({
+      messageId,
+      emoji,
+      existingId,
+    }: {
+      messageId: string;
+      emoji: string;
+      existingId?: string;
+    }) => {
       if (existingId) {
         const { error } = await supabase.from("message_reactions").delete().eq("id", existingId);
         if (error) throw error;
         return;
       }
-      const { error } = await supabase.from("message_reactions").insert({ message_id: messageId, emoji });
+      const { error } = await supabase
+        .from("message_reactions")
+        .insert({ message_id: messageId, emoji });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["messages", conversationId] }),
@@ -215,9 +235,18 @@ export function useRealtimeMessages(conversationId?: string) {
     if (!conversationId) return;
     const channel = supabase
       .channel(`conv-${conversationId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["messages", conversationId] });
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          qc.invalidateQueries({ queryKey: ["messages", conversationId] });
+        },
+      )
       .on("postgres_changes", { event: "*", schema: "public", table: "message_reactions" }, () => {
         qc.invalidateQueries({ queryKey: ["messages", conversationId] });
       })
@@ -229,11 +258,17 @@ export function useRealtimeMessages(conversationId?: string) {
 }
 
 /** Presence + typing indicator for a conversation. */
-export function usePresence(conversationId: string | undefined, userId: string | undefined, name: string) {
+export function usePresence(
+  conversationId: string | undefined,
+  userId: string | undefined,
+  name: string,
+) {
   const qc = useQueryClient();
   useEffect(() => {
     if (!conversationId || !userId) return;
-    const channel = supabase.channel(`presence-${conversationId}`, { config: { presence: { key: userId } } });
+    const channel = supabase.channel(`presence-${conversationId}`, {
+      config: { presence: { key: userId } },
+    });
     channel
       .on("presence", { event: "sync" }, () => {
         qc.setQueryData(["presence", conversationId], channel.presenceState());
@@ -380,4 +415,70 @@ export const timeAgo = (iso: string) => {
   const d = Math.round(h / 24);
   if (d < 7) return `il y a ${d} j`;
   return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" }).format(new Date(iso));
+};
+
+/* -------------------------- messaging upgrade -------------------------- */
+
+export type ConversationFilter = "all" | "dm" | "group" | "channel" | "favorites" | "archived";
+
+/** Toggle favorite / archive flag for the current user on a conversation. */
+export function useSetConversationFlags(conversationId?: string) {
+  const qc = useQueryClient();
+  const { data: me } = useCurrentUser();
+  return useMutation({
+    mutationFn: async ({ flag, value }: { flag: "favorited" | "archived"; value: boolean }) => {
+      if (!conversationId || !me?.id) throw new Error("Aucune conversation sélectionnée");
+      const { error } = await supabase
+        .from("conversation_members")
+        .update({ [flag]: value } as never)
+        .eq("conversation_id", conversationId)
+        .eq("user_id", me.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["conversations"] }),
+    onError: (e: Error) => toast.error("Action impossible", { description: e.message }),
+  });
+}
+
+/** Realtime sync of the conversation list (new messages update previews/unread instantly). */
+export function useRealtimeConversations() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const channel = supabase
+      .channel("conversations-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+        qc.invalidateQueries({ queryKey: ["conversations"] });
+      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "conversation_members" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["conversations"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
+}
+
+/** Read a conversation member row for the current user (flags, unread helpers). */
+export function useMyMembership(conversationId?: string, userId?: string) {
+  const { data: conversations } = useConversations();
+  return useMemo(() => {
+    if (!conversationId) return undefined;
+    const c = (conversations ?? []).find((x) => x["id"] === conversationId);
+    const members = (c?.["conversation_members"] ?? []) as Row[];
+    return members.find((m) => m["user_id"] === userId);
+  }, [conversations, conversationId, userId]);
+}
+
+export const formatClock = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString())
+    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" }).format(d);
 };

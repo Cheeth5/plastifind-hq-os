@@ -49,7 +49,10 @@ import { useT } from "@/lib/i18n";
 import { useRows, dateFR } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { fullNameOf, initialsOf, roleLabel, useMyPermissions, useMyProfile, useMyRole } from "@/lib/rbac";
+import { fullNameOf, initialsOf, roleLabel, useMyPermissions, useMyProfile, useMyRole, useSessionUser } from "@/lib/rbac";
+import { useProfileExt } from "@/lib/profile-ext";
+import { ProfileSearch } from "@/components/profile/profile-search";
+import { useResolvedFileUrl } from "@/lib/use-resolved-url";
 
 function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -294,6 +297,13 @@ export function AppShell({ email }: { email: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const qc = useQueryClient();
   const { can } = useMyPermissions();
+  const { data: user } = useSessionUser();
+  const { data: myProfile } = useMyProfile();
+  const { data: extProfile } = useProfileExt(user?.id);
+
+  const rawAvatar = myProfile?.["avatar_url"] || extProfile?.avatarUrl;
+  const avatarUrl = useResolvedFileUrl(rawAvatar);
+
   const mobileItems = MOBILE_NAV.filter((item) => !NAV_PERMISSIONS[item.to] || can(NAV_PERMISSIONS[item.to]!));
 
   useEffect(() => {
@@ -326,6 +336,7 @@ export function AppShell({ email }: { email: string }) {
         )}
       >
         <SidebarBrand collapsed={collapsed} />
+        {!collapsed && <ProfileSearch className="border-b border-sidebar-border px-3 py-2" />}
         <SidebarNav collapsed={collapsed} />
         <SidebarFounder email={email} collapsed={collapsed} />
         <div className="border-t border-sidebar-border p-2">
@@ -348,6 +359,7 @@ export function AppShell({ email }: { email: string }) {
             <SheetContent side="left" className="w-72 bg-sidebar p-0">
               <SheetTitle className="sr-only">{t("Navigation")}</SheetTitle>
               <SidebarBrand />
+              <ProfileSearch className="border-b border-sidebar-border px-3 py-2" />
               <SidebarNav onNavigate={() => setMobileOpen(false)} />
               <SidebarFounder email={email} />
             </SheetContent>
@@ -394,9 +406,17 @@ export function AppShell({ email }: { email: string }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-full border border-border transition-colors hover:border-primary/40"
+                  className="h-9 w-9 overflow-hidden rounded-full border border-border p-0 transition-colors hover:border-primary/40"
                 >
-                  <span className="text-xs font-bold">{email.slice(0, 2).toUpperCase()}</span>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="Avatar"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-bold">{email.slice(0, 2).toUpperCase()}</span>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">

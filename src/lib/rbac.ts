@@ -2,8 +2,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-
-export type Row = Record<string, any>;
+import type { Row } from "@/lib/db";
 
 export const FOUNDER_EMAIL = "cheithchouk@gmail.com";
 
@@ -12,7 +11,11 @@ export const COMPANY_ROLES = [
   { key: "founder", label: "Fondateur / Super Admin", hint: "Accès complet et illimité" },
   { key: "administrator", label: "Administrateur", hint: "Accès large, sous le fondateur" },
   { key: "engineering", label: "Ingénieur", hint: "Ingénierie, Labi-Bot, tests, composants" },
-  { key: "software_dev", label: "Développeur logiciel", hint: "Logiciel robot, projets, docs techniques" },
+  {
+    key: "software_dev",
+    label: "Développeur logiciel",
+    hint: "Logiciel robot, projets, docs techniques",
+  },
   { key: "ai_engineer", label: "Ingénieur IA", hint: "Modèles, vision par ordinateur, R&D" },
   { key: "designer", label: "Designer", hint: "Design produit, branding, médias" },
   { key: "business", label: "Business Developer", hint: "CRM, partenariats, financement" },
@@ -45,7 +48,11 @@ export function useMyProfile() {
     queryKey: ["my-profile", user?.id],
     enabled: !!user?.id,
     queryFn: async (): Promise<Row | null> => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", user!.id).maybeSingle();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user!.id)
+        .maybeSingle();
       if (error) throw error;
       return (data ?? null) as Row | null;
     },
@@ -59,9 +66,19 @@ export function useMyRole() {
     queryKey: ["my-role", user?.id],
     enabled: !!user?.id,
     queryFn: async (): Promise<string | null> => {
-      const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", user!.id).limit(1);
+      // NOTE: user_roles has UNIQUE(user_id, role), not UNIQUE(user_id), so a
+      // user can legally hold several rows (e.g. founder + viewer test row).
+      // Always prefer founder, then administrator — never return a random row
+      // via limit(1), which caused founder/member flip-flop on each login.
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id);
       if (error) throw error;
-      return (data?.[0]?.role as string) ?? null;
+      const roles = ((data ?? []) as { role: string }[]).map((r) => r.role);
+      if (roles.includes("founder")) return "founder";
+      if (roles.includes("administrator")) return "administrator";
+      return roles[0] ?? null;
     },
     staleTime: 60_000,
   });
@@ -97,9 +114,17 @@ export function firstNameOf(profile?: Row | null, email?: string | null) {
 }
 
 export function fullNameOf(profile?: Row | null, email?: string | null) {
-  const composed = [profile?.["first_name"], profile?.["last_name"]].filter(Boolean).join(" ").trim();
+  const composed = [profile?.["first_name"], profile?.["last_name"]]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   if (composed) return composed;
-  return ((profile?.["full_name"] as string) || "").trim() || (profile?.["email"] as string) || email || "Membre";
+  return (
+    ((profile?.["full_name"] as string) || "").trim() ||
+    (profile?.["email"] as string) ||
+    email ||
+    "Membre"
+  );
 }
 
 export function initialsOf(name: string) {
@@ -130,11 +155,18 @@ export function useTeamAccounts(enabled = true) {
       for (const r of roles ?? []) {
         const role = (r as Row)["role"] as string;
         const userId = (r as Row)["user_id"] as string;
-        if (!byUser[userId] || role === "founder" || (role === "administrator" && byUser[userId] !== "founder")) {
+        if (
+          !byUser[userId] ||
+          role === "founder" ||
+          (role === "administrator" && byUser[userId] !== "founder")
+        ) {
           byUser[userId] = role;
         }
       }
-      return (profiles ?? []).map((p) => ({ ...(p as Row), role: byUser[(p as Row)["id"]] ?? "viewer" }));
+      return (profiles ?? []).map((p) => ({
+        ...(p as Row),
+        role: byUser[(p as Row)["id"]] ?? "viewer",
+      }));
     },
   });
 }
@@ -143,9 +175,22 @@ export function useSetUserRole() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
-      if (delErr) throw delErr;
-      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: role as never });
+      // NOTE: user_roles key is UNIQUE(user_id, role), not UNIQUE(user_id).
+      // A blind upsert on user_id therefore ADDS a row instead of replacing.
+      // Delete other roles first (except founder, which is protected by RLS),
+      // then insert the new one — keeps exactly 1 effective role per user.
+      if (role !== "founder") {
+        const { error: delErr } = await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", userId)
+          .neq("role", "founder" as never)
+          .neq("role", role as never);
+        if (delErr) throw delErr;
+      }
+      const { error } = await supabase
+        .from("user_roles")
+        .upsert({ user_id: userId, role: role as never }, { onConflict: "user_id,role" });
       if (error) throw error;
     },
     onSuccess: () => {

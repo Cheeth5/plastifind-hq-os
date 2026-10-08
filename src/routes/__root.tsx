@@ -14,22 +14,31 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeProvider, themeBootScript } from "@/lib/theme";
 import { LanguageProvider, langBootScript } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
+import { CookieBanner } from "@/components/cookie-banner";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+        <p className="eyebrow text-primary">PlastiFind OS</p>
+        <h1 className="mt-2 text-7xl font-bold tracking-tight text-foreground">404</h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Cette page est introuvable</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          La page demandée n'existe pas ou a été déplacée. Vérifiez l'adresse ou revenez à votre
+          espace de travail.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            to="/dashboard"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Go home
+            Retour au tableau de bord
+          </Link>
+          <Link
+            to="/auth"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Se connecter
           </Link>
         </div>
       </div>
@@ -38,7 +47,6 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
@@ -47,11 +55,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+        <p className="eyebrow text-primary">PlastiFind OS</p>
+        <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+          Cette page n'a pas pu se charger
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Une erreur temporaire est survenue. Réessayez dans un instant — si le problème persiste,
+          reconnectez-vous ou contactez votre administrateur.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -59,15 +69,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Try again
+            Réessayer
           </button>
           <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            href="/dashboard"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Go home
+            Tableau de bord
           </a>
         </div>
       </div>
@@ -80,24 +90,36 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PlastiFind OS — QG interne de la robotique environnementale" },
+      { title: "PlastiFind OS — Robotique environnementale" },
       {
         name: "description",
         content:
-          "PlastiFind OS : système interne de pilotage produit, ingénierie, financement et opérations de la startup PlastiFind.",
+          "PlastiFind OS : espace interne de pilotage produit, ingénierie, financement et opérations de PlastiFind, robotique environnementale.",
       },
       { name: "author", content: "PlastiFind" },
-      { property: "og:title", content: "PlastiFind OS" },
-      { property: "og:description", content: "Le QG numérique de PlastiFind, robotique environnementale." },
+      { name: "theme-color", content: "#081A2B" },
+      { property: "og:site_name", content: "PlastiFind OS" },
+      { property: "og:title", content: "PlastiFind OS — Robotique environnementale" },
+      {
+        property: "og:description",
+        content: "Le QG numérique de PlastiFind, robotique environnementale.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "PlastiFind OS — Robotique environnementale" },
+      {
+        name: "twitter:description",
+        content: "Le QG numérique de PlastiFind, robotique environnementale.",
+      },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
+      { rel: "manifest", href: "/site.webmanifest" },
     ],
     scripts: [{ children: `${themeBootScript}${langBootScript}` }],
   }),
@@ -131,9 +153,9 @@ function RootComponent() {
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <Toaster />
+          <CookieBanner />
         </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
 }
-
