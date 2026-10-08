@@ -1,3 +1,4 @@
+import { InstallAppButton } from "@/components/install-app-button";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
