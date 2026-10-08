@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -46,7 +47,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
@@ -121,7 +122,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
       { rel: "manifest", href: "/site.webmanifest" },
     ],
-    scripts: [{ children: `${themeBootScript}${langBootScript}` }],
+    scripts: [{ children: `${themeBootScript}${langBootScript}window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__pfInstall=e;window.dispatchEvent(new Event("pf-install-ready"))});` }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
