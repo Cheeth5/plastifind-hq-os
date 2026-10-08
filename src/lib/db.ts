@@ -7,17 +7,18 @@ import type { Database } from "@/integrations/supabase/types";
 export type Row = Record<string, any>;
 
 /** Union of every public schema table name, derived from the generated types. */
+const sb = supabase as any;
 export type TableName = keyof Database["public"]["Tables"];
 
-export function useRows<T extends TableName>(
+export function useRows<T extends string>(
   table: T,
   opts?: { order?: string | undefined; ascending?: boolean | undefined; limit?: number | undefined },
 ) {
-  type R = Database["public"]["Tables"][T]["Row"];
+  type R = Row;
   return useQuery({
     queryKey: ["rows", table, opts?.order, opts?.ascending, opts?.limit],
     queryFn: async (): Promise<R[]> => {
-      let q = supabase.from(table).select("*");
+      let q = sb.from(table).select("*");
       if (opts?.order) q = q.order(opts.order, { ascending: opts.ascending ?? true, nullsFirst: false });
       else q = (q as unknown as typeof q).order("created_at", { ascending: false });
       if (opts?.limit) q = q.limit(opts.limit);
@@ -28,13 +29,13 @@ export function useRows<T extends TableName>(
   });
 }
 
-export function useRow<T extends TableName>(table: T, id?: string) {
-  type R = Database["public"]["Tables"][T]["Row"];
+export function useRow<T extends string>(table: T, id?: string) {
+  type R = Row;
   return useQuery({
     queryKey: ["row", table, id],
     enabled: !!id,
     queryFn: async (): Promise<R | null> => {
-      const { data, error } = await supabase.from(table).select("*").eq("id", id!).maybeSingle();
+      const { data, error } = await sb.from(table).select("*").eq("id", id!).maybeSingle();
       if (error) throw error;
       return (data ?? null) as R | null;
     },
@@ -46,13 +47,13 @@ function invalidate(qc: ReturnType<typeof useQueryClient>, table: string) {
   qc.invalidateQueries({ queryKey: ["row", table] });
 }
 
-export function useCreateRow<T extends TableName>(table: T) {
-  type Insert = Database["public"]["Tables"][T]["Insert"];
-  type R = Database["public"]["Tables"][T]["Row"];
+export function useCreateRow<T extends string>(table: T) {
+  type Insert = Row;
+  type R = Row;
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Partial<Insert> & Row): Promise<R> => {
-      const { data, error } = await supabase.from(table).insert(values as never).select().single();
+      const { data, error } = await sb.from(table).insert(values as never).select().single();
       if (error) throw error;
       return data as R;
     },
@@ -64,13 +65,13 @@ export function useCreateRow<T extends TableName>(table: T) {
   });
 }
 
-export function useUpdateRow<T extends TableName>(table: T) {
-  type Update = Database["public"]["Tables"][T]["Update"];
-  type R = Database["public"]["Tables"][T]["Row"];
+export function useUpdateRow<T extends string>(table: T) {
+  type Update = Row;
+  type R = Row;
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, values }: { id: string; values: Partial<Update> & Row }): Promise<R> => {
-      const { data, error } = await supabase.from(table).update(values as never).eq("id", id).select().single();
+      const { data, error } = await sb.from(table).update(values as never).eq("id", id).select().single();
       if (error) throw error;
       return data as R;
     },
@@ -82,11 +83,11 @@ export function useUpdateRow<T extends TableName>(table: T) {
   });
 }
 
-export function useDeleteRow<T extends TableName>(table: T) {
+export function useDeleteRow<T extends string>(table: T) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from(table).delete().eq("id", id);
+      const { error } = await sb.from(table).delete().eq("id", id);
       if (error) throw error;
       return id;
     },
