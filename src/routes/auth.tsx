@@ -6,6 +6,7 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DownloadAppButton } from "@/components/download-app";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 
@@ -388,6 +389,9 @@ function AuthPage() {
             </a>
             .
           </p>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <DownloadAppButton compact />
+          </div>
         </div>
       </div>
     </div>

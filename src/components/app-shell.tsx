@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { fullNameOf, initialsOf, roleLabel, useMyPermissions, useMyProfile, useMyRole, useSessionUser } from "@/lib/rbac";
 import { useProfileExt } from "@/lib/profile-ext";
 import { ProfileSearch } from "@/components/profile/profile-search";
+import { DownloadAppButton } from "@/components/download-app";
 import { useResolvedFileUrl } from "@/lib/use-resolved-url";
 
 function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
@@ -401,6 +402,7 @@ export function AppShell({ email }: { email: string }) {
               <span className="sr-only">{t("Thème")}</span>
             </Button>
             <NotificationsButton />
+            <DownloadAppButton compact />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

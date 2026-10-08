@@ -25,6 +25,11 @@ dashboard-check.png
 supabase/.temp/
 supabase/types.ts.new
 
+# Desktop app build output (regenerate with npm run build:desktop)
+.output/
+desktop/.output/
+desktop/release/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

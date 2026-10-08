@@ -1,0 +1,52 @@
+{
+  "name": "plastifind-desktop",
+  "productName": "PlastiFind OS",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PlastiFind OS — application de bureau (espace interne)",
+  "main": "main.cjs",
+  "scripts": {
+    "icons": "node gen-icons.mjs",
+    "stage": "node stage.mjs",
+    "start": "npm run stage && electron .",
+    "dist": "node scripts/dist.cjs"
+  },
+  "build": {
+    "appId": "com.plastifind.os",
+    "productName": "PlastiFind OS",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      ".output/**/*",
+      "package.json"
+    ],
+    "compression": "maximum",
+    "npmRebuild": false,
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PlastiFind OS",
+      "artifactName": "PlastiFind-Setup.exe",
+      "uninstallDisplayName": "PlastiFind OS",
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -7,6 +7,9 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:desktop": "node scripts/build-desktop.mjs",
+    "desktop": "npm run build:desktop && npm --prefix desktop run start",
+    "desktop:dist": "npm run build:desktop && npm --prefix desktop run dist",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."
