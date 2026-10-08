@@ -380,6 +380,7 @@ export function AppShell({ email }: { email: string }) {
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <span className="mr-1 hidden text-xs font-medium text-muted-foreground 2xl:block">{today}</span>
+            <InstallAppButton />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" className="hidden shadow-[0_8px_24px_-12px_var(--color-primary)] sm:inline-flex">
