@@ -11,14 +11,19 @@ export function InstallAppButton() {
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) setInstalled(true);
+    const w = window as unknown as { __pfInstall?: PromptEvent };
+    if (w.__pfInstall) setEvt(w.__pfInstall);
+    const onReady = () => w.__pfInstall && setEvt(w.__pfInstall);
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setEvt(e as PromptEvent);
     };
     const onInstalled = () => setInstalled(true);
+    window.addEventListener("pf-install-ready", onReady);
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
+      window.removeEventListener("pf-install-ready", onReady);
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
@@ -30,14 +35,20 @@ export function InstallAppButton() {
     if (evt) {
       await evt.prompt();
       await evt.userChoice;
+      (window as unknown as { __pfInstall?: PromptEvent }).__pfInstall = undefined;
       setEvt(null);
       return;
     }
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const ua = navigator.userAgent;
+    const ios = /iphone|ipad|ipod/i.test(ua);
+    const edge = /edg\//i.test(ua);
     toast.info("Installer PlastiFind OS", {
+      duration: 12000,
       description: ios
         ? "Dans Safari : bouton Partager → « Sur l'écran d'accueil »."
-        : "Ouvrez l'app publiée dans Chrome ou Edge, puis cliquez sur l'icône d'installation dans la barre d'adresse.",
+        : edge
+          ? "Menu ⋯ en haut à droite → Applications → « Installer PlastiFind OS »."
+          : "Menu ⋮ en haut à droite → « Caster, enregistrer et partager » → « Installer la page en tant qu'application ». Si l'app est déjà installée, ouvrez-la depuis le menu Démarrer.",
     });
   };
 

@@ -122,7 +122,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
       { rel: "manifest", href: "/site.webmanifest" },
     ],
-    scripts: [{ children: `${themeBootScript}${langBootScript}` }],
+    scripts: [{ children: `${themeBootScript}${langBootScript}window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__pfInstall=e;window.dispatchEvent(new Event("pf-install-ready"))});` }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
