@@ -6,7 +6,6 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DownloadAppButton } from "@/components/download-app";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 
@@ -56,7 +55,7 @@ function AuthPage() {
         // Keep the generic message below for non-serializable provider errors.
       }
     }
-    return "Une erreur est survenue. Vérifiez que ce fournisseur est activé dans Lovable Cloud.";
+    return "Une erreur est survenue. Vérifiez que ce fournisseur est activé sur Supabase.";
   };
 
   useEffect(() => {
@@ -133,11 +132,10 @@ function AuthPage() {
   const google = async () => {
     setError(null);
     setLoading(true);
-    const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/auth`,
-    });
-    if (error) {
-      setError("Connexion Google indisponible.");
+    try {
+      await signInWithProvider("google");
+    } catch (err) {
+      setError(readableError(err));
       setLoading(false);
     }
   };
@@ -145,12 +143,33 @@ function AuthPage() {
   const apple = async () => {
     setError(null);
     setLoading(true);
-    const { error } = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: `${window.location.origin}/auth`,
-    });
-    if (error) {
-      setError("Connexion Apple indisponible.");
+    try {
+      await signInWithProvider("apple");
+    } catch (err) {
+      setError(readableError(err));
       setLoading(false);
+    }
+  };
+
+  /** Login goes through Supabase-native OAuth inside the desktop app (no Lovable hosting),
+   * and through Lovable's proxy when served from the Lovable web app. */
+  const signInWithProvider = async (provider: "google" | "apple") => {
+    const isDesktopApp =
+      typeof window !== "undefined" &&
+      !!((window as { plastifindDesktop?: { isDesktop?: boolean } }).plastifindDesktop?.isDesktop);
+    if (isDesktopApp) {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+      if (error) throw error;
+    } else {
+      const { error } = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: `${window.location.origin}/auth`,
+      });
+      if (error) throw error;
     }
   };
 
@@ -389,9 +408,6 @@ function AuthPage() {
             </a>
             .
           </p>
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-            <DownloadAppButton compact />
-          </div>
         </div>
       </div>
     </div>

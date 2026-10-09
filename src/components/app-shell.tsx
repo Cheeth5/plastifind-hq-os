@@ -1,4 +1,4 @@
-import { InstallAppButton } from "@/components/install-app-button";
+
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -10,6 +10,7 @@ import {
   CheckSquare,
   ChevronRight,
   Command as CommandIcon,
+  Download,
   FileText,
   FolderKanban,
   LogOut,
@@ -53,7 +54,6 @@ import { cn } from "@/lib/utils";
 import { fullNameOf, initialsOf, roleLabel, useMyPermissions, useMyProfile, useMyRole, useSessionUser } from "@/lib/rbac";
 import { useProfileExt } from "@/lib/profile-ext";
 import { ProfileSearch } from "@/components/profile/profile-search";
-import { DownloadAppButton } from "@/components/download-app";
 import { useResolvedFileUrl } from "@/lib/use-resolved-url";
 
 function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
@@ -382,7 +382,6 @@ export function AppShell({ email }: { email: string }) {
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <span className="mr-1 hidden text-xs font-medium text-muted-foreground 2xl:block">{today}</span>
-            <InstallAppButton />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" className="hidden shadow-[0_8px_24px_-12px_var(--color-primary)] sm:inline-flex">
@@ -404,7 +403,12 @@ export function AppShell({ email }: { email: string }) {
               <span className="sr-only">{t("Thème")}</span>
             </Button>
             <NotificationsButton />
-            <DownloadAppButton compact />
+            <Button variant="outline" size="sm" asChild title="Télécharger PlastiFind-Setup.exe">
+              <a href="/api/download/exe" download>
+                <Download className="h-4 w-4" />
+                <span className="hidden xs:inline">Télécharger l'installateur</span>
+              </a>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

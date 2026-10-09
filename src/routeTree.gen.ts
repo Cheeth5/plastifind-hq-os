@@ -44,6 +44,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedUniversityRouteImport } from './routes/_authenticated/university'
+import { Route as ApiDownloadExeRouteImport } from './routes/api/download.exe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -223,6 +224,11 @@ const AuthenticatedUniversityRoute = AuthenticatedUniversityRouteImport.update({
   path: '/university',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiDownloadExeRoute = ApiDownloadExeRouteImport.update({
+  id: '/api/download/exe',
+  path: '/api/download/exe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -259,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof AuthenticatedTasksRoute
   '/team': typeof AuthenticatedTeamRoute
   '/university': typeof AuthenticatedUniversityRoute
+  '/api/download/exe': typeof ApiDownloadExeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof AuthenticatedTasksRoute
   '/team': typeof AuthenticatedTeamRoute
   '/university': typeof AuthenticatedUniversityRoute
+  '/api/download/exe': typeof ApiDownloadExeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/university': typeof AuthenticatedUniversityRoute
+  '/api/download/exe': typeof ApiDownloadExeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -371,6 +380,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/team'
     | '/university'
+    | '/api/download/exe'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/team'
     | '/university'
+    | '/api/download/exe'
   id:
     | '__root__'
     | '/'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks'
     | '/_authenticated/team'
     | '/_authenticated/university'
+    | '/api/download/exe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -457,6 +469,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  ApiDownloadExeRoute: typeof ApiDownloadExeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -706,6 +719,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUniversityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/download/exe': {
+      id: '/api/download/exe'
+      path: '/api/download/exe'
+      fullPath: '/api/download/exe'
+      preLoaderRoute: typeof ApiDownloadExeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -779,6 +799,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  ApiDownloadExeRoute: ApiDownloadExeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
