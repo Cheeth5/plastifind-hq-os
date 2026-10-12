@@ -13,7 +13,21 @@ const http = require("http");
 
 const PORT = 4517; // Fixed so it can be allow-listed in Supabase Auth redirect URLs.
 const ORIGIN = `http://127.0.0.1:${PORT}`;
-const SERVER_ENTRY = path.join(__dirname, ".output", "server", "index.mjs");
+// The embedded server is unpacked from app.asar (asarUnpack) because the Node
+// server cannot reliably read its chunks/static files from inside the archive.
+const APP_DIR = __dirname.replace(/app\.asar(?=[\\/]|$)/, "app.asar.unpacked");
+const SERVER_DIR = path.join(APP_DIR, ".output");
+const SERVER_ENTRY = path.join(SERVER_DIR, "server", "index.mjs");
+const fs = require("fs");
+let logStream = null;
+function logLine(s) {
+  try {
+    if (!logStream) {
+      logStream = fs.createWriteStream(path.join(app.getPath("userData"), "server.log"), { flags: "w" });
+    }
+    logStream.write(s);
+  } catch {}
+}
 
 /** Hosts the app may navigate to in-place (SSO/OAuth); everything else opens externally. */
 const IN_APP_HOSTS = [
