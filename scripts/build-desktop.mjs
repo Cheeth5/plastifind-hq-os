@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 const result = spawnSync("npx vite build", {
   stdio: "inherit",
   shell: true,
-  env: { ...process.env, DESKTOP_BUILD: "1" },
+  env: { ...process.env, DESKTOP_BUILD: "1", LOVABLE_SANDBOX: "", DEV_SERVER__PROJECT_PATH: "" },
 });
 
 process.exit(result.status ?? 1);
