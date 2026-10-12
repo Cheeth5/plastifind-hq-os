@@ -76,18 +76,21 @@ function waitForServer(port, timeoutMs = 30000) {
 
 function startServer() {
   serverProcess = spawn(process.execPath, [SERVER_ENTRY], {
+    cwd: SERVER_DIR,
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
+      NODE_ENV: "production",
       PORT: String(PORT),
       NITRO_PORT: String(PORT),
       HOST: "127.0.0.1",
       NITRO_HOST: "127.0.0.1",
     },
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   });
-  serverProcess.stdout.on("data", (d) => process.stdout.write(`[serveur] ${d}`));
-  serverProcess.stderr.on("data", (d) => process.stderr.write(`[serveur] ${d}`));
+  serverProcess.stdout.on("data", (d) => logLine(`[out] ${d}`));
+  serverProcess.stderr.on("data", (d) => logLine(`[err] ${d}`));
   serverProcess.on("exit", (code) => {
     if (code !== 0 && code !== null && app.isReady()) {
       dialog.showErrorBox(
