@@ -9,7 +9,7 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // Set by scripts/build-desktop.mjs: builds a Node server into .output/ which the
 // Electron desktop app embeds and serves locally. Never set on Lovable's side
 // (their sandbox build forces the cloudflare-module preset regardless).
-const desktopBuild = process.env.DESKTOP_BUILD === "1";
+const desktopBuild = process.env["DESKTOP_BUILD"] === "1";
 
 export default defineConfig({
   ...(desktopBuild ? { nitro: { preset: "node" } } : {}),
