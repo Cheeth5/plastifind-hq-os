@@ -25,6 +25,9 @@
       "package.json"
     ],
     "compression": "maximum",
+    "asarUnpack": [
+      ".output/**/*"
+    ],
     "npmRebuild": false,
     "win": {
       "icon": "build/icon.png",

@@ -6,12 +6,17 @@ import { fileURLToPath } from "node:url";
 // The TanStack server lives in .output/server/; resolve the installer relative
 // to the repository root so it works both in the embedded server and in the
 // standalone desktop app.
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
+// Computed lazily: on the web host import.meta.url is undefined, and evaluating
+// this at module load crashed every page of the published site.
 function findExePath(): string | null {
+  let __dirname: string;
+  try {
+    __dirname = dirname(fileURLToPath(import.meta.url));
+  } catch {
+    return null;
+  }
   // In the packaged Electron app, `process.resourcesPath` points at the
-  // `resources/` folder that sits beside `app.asar`; the installer is copied
-  // there during staging so the app can always re-download itself.
+  // `resources/` folder that sits beside `app.asar`.
   const resourcesPath =
     (process as unknown as { resourcesPath?: string }).resourcesPath;
 
