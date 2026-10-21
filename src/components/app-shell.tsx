@@ -55,7 +55,6 @@ import { fullNameOf, initialsOf, roleLabel, useMyPermissions, useMyProfile, useM
 import { useProfileExt } from "@/lib/profile-ext";
 import { ProfileSearch } from "@/components/profile/profile-search";
 import { useResolvedFileUrl } from "@/lib/use-resolved-url";
-import { toast } from "sonner";
 
 function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -298,31 +297,6 @@ export function AppShell({ email }: { email: string }) {
   const t = useT();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  const handleDownloadInstaller = async () => {
-    try {
-      const res = await fetch("/api/download/exe");
-      if (res.status === 404) {
-        toast.error("Installateur non disponible sur cette version web.");
-        return;
-      }
-      if (!res.ok) {
-        toast.error("Erreur lors du téléchargement de l'installateur.");
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "PlastiFind-Setup.exe";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error("Impossible de télécharger l'installateur.");
-    }
-  };
   const qc = useQueryClient();
   const { can } = useMyPermissions();
   const { data: user } = useSessionUser();
@@ -429,9 +403,11 @@ export function AppShell({ email }: { email: string }) {
               <span className="sr-only">{t("Thème")}</span>
             </Button>
             <NotificationsButton />
-            <Button variant="outline" size="sm" onClick={handleDownloadInstaller} title="Télécharger PlastiFind-Setup.exe">
-              <Download className="h-4 w-4" />
-              <span className="hidden xs:inline">Télécharger l'installateur</span>
+            <Button variant="outline" size="sm" asChild title="Télécharger PlastiFind-Setup.exe">
+              <a href="https://github.com/Cheeth5/plastifind-hq-os/releases/download/v1.0.0/PlastiFind-Setup.exe" target="_blank" rel="noopener noreferrer">
+                <Download className="h-4 w-4" />
+                <span className="hidden xs:inline">Télécharger l'installateur</span>
+              </a>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
