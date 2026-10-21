@@ -41,10 +41,14 @@ export const Route = createFileRoute("/api/download/exe")({
         const exePath = findExePath();
         if (!exePath) {
           return new Response(
-            "PlastiFind-Setup.exe introuvable.\nVous devez d'abord exécuter `npm run dist` pour générer l'installateur.",
+            JSON.stringify({
+              error: "installer_not_available",
+              message:
+                "L'installateur n'est pas disponible sur cette version web. Téléchargez l'application de bureau pour obtenir PlastiFind-Setup.exe.",
+            }),
             {
-              status: 500,
-              headers: { "Content-Type": "text/plain; charset=utf-8" },
+              status: 404,
+              headers: { "Content-Type": "application/json; charset=utf-8" },
             },
           );
         }
