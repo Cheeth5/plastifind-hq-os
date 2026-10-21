@@ -155,6 +155,31 @@ function RootComponent() {
     });
   }, []);
 
+  // Best-effort: hide "Made with Lovable" badge injected by Lovable's hosting
+  // platform at runtime (not present in source code). Uses a MutationObserver so
+  // the badge is removed even if Lovable injects it after the initial render.
+  useEffect(() => {
+    const removeLovableBadge = () => {
+      // Remove links to Lovable domains and elements with Lovable badge classes
+      document
+        .querySelectorAll(
+          'a[href*="lovable.dev"], a[href*="lovable.app"], a[href*="lovableproject"], [class*="lovable-badge"], [class*="made-with-lovable"], [id*="lovable-badge"]'
+        )
+        .forEach((el) => el.remove());
+      // Remove elements whose own text content is the Lovable badge
+      document.querySelectorAll("*").forEach((el) => {
+        const text = el.textContent?.trim();
+        if (text && /Made with Lovable/i.test(text) && el.children.length === 0) {
+          el.remove();
+        }
+      });
+    };
+    removeLovableBadge();
+    const observer = new MutationObserver(removeLovableBadge);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
