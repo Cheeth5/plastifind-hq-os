@@ -78,7 +78,7 @@ function Page() {
                 {LANGS.map((l) => (
                   <SelectItem key={l.code} value={l.code}>
                     <span className="flex items-center gap-2">
-                      <span className="text-base leading-none">{l.flag}</span>
+                      <img src={l.flag} alt="" className="h-4 w-4" />
                       {l.label}
                     </span>
                   </SelectItem>

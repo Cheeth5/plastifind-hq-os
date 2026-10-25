@@ -2,11 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 export type Lang = "fr" | "en" | "ar" | "es";
 
+const flag = (name: string) => `/assets/flags/${name}.svg`;
+
 export const LANGS: { code: Lang; label: string; flag: string; dir: "ltr" | "rtl" }[] = [
-  { code: "fr", label: "Français", flag: "🇫🇷", dir: "ltr" },
-  { code: "en", label: "English", flag: "🇺🇸", dir: "ltr" },
-  { code: "ar", label: "العربية", flag: "🇹🇳", dir: "rtl" },
-  { code: "es", label: "Español", flag: "🇪🇸", dir: "ltr" },
+  { code: "fr", label: "Français", flag: flag("fr"), dir: "ltr" },
+  { code: "en", label: "English", flag: flag("us"), dir: "ltr" },
+  { code: "ar", label: "العربية", flag: flag("tn"), dir: "rtl" },
+  { code: "es", label: "Español", flag: flag("es"), dir: "ltr" },
 ];
 
 /** Dictionaries keyed by the canonical French string. Missing keys fall back to French. */
