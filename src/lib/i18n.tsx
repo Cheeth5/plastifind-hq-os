@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type Lang = "fr" | "en" | "ar";
+export type Lang = "fr" | "en" | "ar" | "es";
 
 export const LANGS: { code: Lang; label: string; flag: string; dir: "ltr" | "rtl" }[] = [
   { code: "fr", label: "Français", flag: "🇫🇷", dir: "ltr" },
   { code: "en", label: "English", flag: "🇺🇸", dir: "ltr" },
   { code: "ar", label: "العربية", flag: "🇹🇳", dir: "rtl" },
+  { code: "es", label: "Español", flag: "🇪🇸", dir: "ltr" },
 ];
 
 /** Dictionaries keyed by the canonical French string. Missing keys fall back to French. */
@@ -93,6 +94,88 @@ const EN: Record<string, string> = {
   Sécurité: "Security",
 };
 
+const ES: Record<string, string> = {
+  "Tableau de bord": "Tablero de mandos",
+  Entreprise: "Empresa",
+  Roadmap: "Hoja de ruta",
+  Produits: "Productos",
+  Ingénierie: "Ingeniería",
+  Projets: "Proyectos",
+  Tâches: "Tareas",
+  Recherche: "Búsqueda",
+  Business: "Negocios",
+  CRM: "CRM",
+  Financement: "Financiamiento",
+  Finance: "Finanzas",
+  Réunions: "Reuniones",
+  Marketing: "Marketing",
+  Équipe: "Equipo",
+  Médias: "Medios",
+  Réalisations: "Logros",
+  Documents: "Documentos",
+  "Juridique & PI": "Legal y Propiedad Intelectual",
+  Concours: "Competiciones",
+  Université: "Universidad",
+  Paramètres: "Ajustes",
+  Pilotage: "Mando",
+  "Produit & ingénierie": "Producto e ingeniería",
+  Organisation: "Organización",
+  "Rechercher dans PlastiFind OS…": "Buscar en PlastiFind OS…",
+  "Rechercher…": "Buscar…",
+  Créer: "Crear",
+  Thème: "Tema",
+  Notifications: "Notificaciones",
+  "Aucune notification.": "Sin notificaciones.",
+  "Se déconnecter": "Cerrar sesión",
+  Réduire: "Contraer",
+  Menu: "Menú",
+  Navigation: "Navegación",
+  "Aucun résultat.": "Sin resultados.",
+  "Actions rapides": "Acciones rápidas",
+  Modules: "Módulos",
+  "Changer de thème": "Cambiar tema",
+  "Rechercher un module ou une action…": "Buscar un módulo o acción…",
+  Modifier: "Editar",
+  Supprimer: "Eliminar",
+  Annuler: "Cancelar",
+  Enregistrer: "Guardar",
+  "Tous les statuts": "Todos los estados",
+  "Toutes les échéances": "Todos los plazos",
+  "Échéance dépassée": "Vencido",
+  "Sous 30 jours": "Con menos de 30 días",
+  "Sous 90 jours": "Con menos de 90 días",
+  "Sans date": "Sin fecha",
+  "élément(s)": "elemento(s)",
+  "Aucun résultat": "Sin resultados",
+  "Ajustez votre recherche ou vos filtres.": "Ajusta tu búsqueda o filtros.",
+  "Sélectionner…": "Seleccionar…",
+  Oui: "Sí",
+  Non: "No",
+  Aucun: "Ninguno",
+  "Téléverser un fichier": "Cargar archivo",
+  "Téléversement…": "Cargando…",
+  "Ouvrir le fichier": "Abrir archivo",
+  Retirer: "Quitar",
+  "Cette action est irréversible.": "Esta acción no se puede deshacer.",
+  "Supprimer cet élément ?": "¿Eliminar este elemento?",
+  Statut: "Estado",
+  Priorité: "Prioridad",
+  Échéance: "Vencimiento",
+  Liste: "Lista",
+  Tableau: "Tablero",
+  "Glissez une carte pour changer son statut.": "Arrastra una carta para cambiar su estado.",
+  Langue: "Idioma",
+  Devise: "Moneda",
+  "Format de date": "Formato de fecha",
+  "Préférences générales": "Preferencias generales",
+  "Mode sombre par défaut": "Modo oscuro predeterminado",
+  "Passer en clair": "Cambiar a claro",
+  "Passer en sombre": "Cambiar a oscuro",
+  Marque: "Marca",
+  "Rôles et permissions": "Roles y permisos",
+  Sécurité: "Seguridad",
+};
+
 const AR: Record<string, string> = {
   "Tableau de bord": "لوحة القيادة",
   Entreprise: "الشركة",
@@ -175,7 +258,7 @@ const AR: Record<string, string> = {
   Sécurité: "الأمان",
 };
 
-const DICTS: Record<Lang, Record<string, string>> = { fr: {}, en: EN, ar: AR };
+const DICTS: Record<Lang, Record<string, string>> = { fr: {}, en: EN, ar: AR, es: ES };
 
 type Ctx = { lang: Lang; setLang: (l: Lang) => void; t: (s: string) => string; dir: "ltr" | "rtl" };
 
